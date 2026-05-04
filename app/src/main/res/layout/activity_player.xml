@@ -157,7 +157,7 @@
                 android:layout_height="52dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                android:text="🔇 Commercial"
+                android:text="🔇 Ads"
                 android:textSize="15sp"
                 android:backgroundTint="@color/btn_commercial"
                 android:textColor="@color/text_on_accent"

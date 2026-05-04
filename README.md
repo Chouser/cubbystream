@@ -23,9 +23,17 @@ docker run -it --rm \
   bash -c "cd /root/build && ./gradlew assembleDebug"
 ```
 
-Install:
+### Building release verion
 
+Use `./gradlew assembleRelease`
+
+This will pick up `app/src/main/res/xml/network_security_config.xml` instead of `app/src/debug/res/xml/network_security_config.xml`
+
+## Install:
+
+```bash
 adb install app/build/outputs/apk/debug/app-debug.apk
+```
 
 ### Version compatibility table
 

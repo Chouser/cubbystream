@@ -21,7 +21,8 @@ import okhttp3.Response;
 public class FeedFetcher {
 
     /** ---- CHANGE THIS TO YOUR ACTUAL SERVER URL ---- */
-    public static final String FEED_URL = "http://192.168.0.135:8080/streams.json";
+    //public static final String FEED_URL = "http://192.168.0.135:8888/streams.json";
+    public static final String FEED_URL = "https://chouser.us/streams.json";
 
     public interface Callback {
         void onSuccess(StreamFeed feed);
