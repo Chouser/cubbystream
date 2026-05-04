@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Player layout design rationale:
+  - PAUSE button sits at the TOP of the screen so it is never near RESUME.
+  - RESUME, SKIP TO LIVE, and STOP sit at the BOTTOM.
+  - This spatial separation prevents accidental double-tap toggling.
+  - Volume override buttons sit in the middle section near the status indicator.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_dark">
+
+    <!-- ================================================================ -->
+    <!-- TOP SECTION: Stream info + PAUSE button                          -->
+    <!-- ================================================================ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/header_bg"
+        android:padding="20dp"
+        android:elevation="4dp">
+
+        <!-- Back arrow + title row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/btn_back"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="← Back"
+                android:textColor="@color/accent"
+                android:textSize="15sp"
+                android:paddingEnd="12dp"
+                android:onClick="finish" />
+
+            <TextView
+                android:id="@+id/text_player_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:ellipsize="end"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_player_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="20dp" />
+
+        <!-- PAUSE — large, clearly labelled, at the top -->
+        <Button
+            android:id="@+id/btn_pause_top"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="⏸  PAUSE"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:backgroundTint="@color/btn_pause"
+            android:textColor="@color/text_on_accent"
+            style="@style/Widget.MaterialComponents.Button" />
+
+    </LinearLayout>
+
+    <!-- ================================================================ -->
+    <!-- MIDDLE SECTION: Status + volume controls                         -->
+    <!-- ================================================================ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <!-- Playback state -->
+        <TextView
+            android:id="@+id/text_playback_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Connecting…"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Volume state indicator -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="40dp">
+
+            <ImageView
+                android:id="@+id/icon_volume"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_lock_silent_mode_off"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/text_volume_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔊 Game volume (100%)"
+                android:textSize="15sp"
+                android:textColor="@color/text_secondary" />
+        </LinearLayout>
+
+        <!-- Volume override label -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="MANUAL OVERRIDE"
+            android:textSize="11sp"
+            android:textColor="@color/text_secondary"
+            android:letterSpacing="0.12"
+            android:gravity="center"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Volume override buttons side by side -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btn_force_game"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="🔊 Game"
+                android:textSize="15sp"
+                android:backgroundTint="@color/btn_game"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button" />
+
+            <Button
+                android:id="@+id/btn_force_commercial"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="🔇 Commercial"
+                android:textSize="15sp"
+                android:backgroundTint="@color/btn_commercial"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ================================================================ -->
+    <!-- BOTTOM SECTION: RESUME, SKIP TO LIVE, STOP                      -->
+    <!-- Spatially far from PAUSE to prevent accidental toggle            -->
+    <!-- ================================================================ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/bottom_bar_bg"
+        android:padding="20dp"
+        android:elevation="4dp">
+
+        <!-- RESUME — bottom left, physically separated from PAUSE (top) -->
+        <Button
+            android:id="@+id/btn_resume_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="▶  RESUME"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:backgroundTint="@color/btn_resume"
+            android:textColor="@color/text_on_accent"
+            android:layout_marginBottom="12dp"
+            style="@style/Widget.MaterialComponents.Button" />
+
+        <!-- Secondary controls row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_skip_to_live"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="⏭ Live"
+                android:textSize="14sp"
+                android:backgroundTint="@color/btn_live"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button" />
+
+            <Button
+                android:id="@+id/btn_stop"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="■ Stop"
+                android:textSize="14sp"
+                android:backgroundTint="@color/btn_stop"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
