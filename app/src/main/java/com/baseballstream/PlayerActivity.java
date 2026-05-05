@@ -8,9 +8,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,35 +28,32 @@ public class PlayerActivity extends AppCompatActivity
     public static final String EXTRA_TYPE     = "extra_type";
 
     private static final int REQ_NOTIFICATION = 101;
-    private static final int REQ_MICROPHONE   = 102;
 
-    // UI — top cluster (pause)
-    private Button btnPauseTop;
+    // ---- Volume mode ----
+    /** Three mutually exclusive modes. AUTO lets the detector decide. */
+    private enum VolumeMode { AUTO, GAME, ADS }
+    private VolumeMode volumeMode = VolumeMode.AUTO;
 
-    // UI — bottom cluster (resume is spatially separated from pause)
-    private Button btnResumeBottom;
-    private Button btnSkipToLive;
-    private Button btnStop;
+    // ---- Views ----
+    private TextView    textStreamTitle;
+    private TextView    textStreamSubtitle;
+    private TextView    textPlaybackStatus;
+    private TextView    textVolumeMode;       // current mode label
+    private TextView    textEnergyLevel;      // live FFT reading
+    private ProgressBar progressEnergy;       // bar showing energy vs threshold
+    private Button      btnPause;
+    private Button      btnResume;
+    private Button      btnSkipToLive;
+    private Button      btnStop;
+    private Button      btnModeGame;
+    private Button      btnModeAds;
+    private Button      btnModeAuto;
 
-    // Volume override buttons
-    private Button btnForceGame;
-    private Button btnForceCommercial;
-
-    // Status display
-    private TextView textStreamTitle;
-    private TextView textStreamSubtitle;
-    private TextView textPlaybackStatus;
-    private TextView textVolumeStatus;
-    private ImageView iconVolume;
-
-    // Service
+    // ---- Service ----
     private PlaybackService service;
     private boolean bound = false;
 
-    // autoDetectEnabled pauses auto-switching briefly after a manual override
-    private boolean autoDetectEnabled = true;
-
-    // Stream info from intent
+    // ---- Stream info ----
     private String streamUrl;
     private String streamTitle;
     private String streamSubtitle;
@@ -66,15 +62,13 @@ public class PlayerActivity extends AppCompatActivity
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder binder) {
-            PlaybackService.LocalBinder lb = (PlaybackService.LocalBinder) binder;
-            service = lb.getService();
+            service = ((PlaybackService.LocalBinder) binder).getService();
             service.setPlaybackListener(PlayerActivity.this);
             service.setCrowdNoiseListener(PlayerActivity.this);
             bound = true;
-
-            // Start playback
             service.playStream(streamUrl, streamTitle, streamType);
-            updateUiFromService();
+            updatePlaybackUi(service.isPlaying());
+            applyVolumeMode(VolumeMode.AUTO); // always start in Auto on a new stream
         }
 
         @Override
@@ -84,16 +78,15 @@ public class PlayerActivity extends AppCompatActivity
         }
     };
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Lifecycle
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
 
-        // Read intent extras
         streamUrl      = getIntent().getStringExtra(EXTRA_URL);
         streamTitle    = getIntent().getStringExtra(EXTRA_TITLE);
         streamSubtitle = getIntent().getStringExtra(EXTRA_SUBTITLE);
@@ -108,6 +101,7 @@ public class PlayerActivity extends AppCompatActivity
         bindViews();
         setupClickListeners();
         displayStreamInfo();
+        requestNotificationPermission();
         startAndBindService();
     }
 
@@ -116,103 +110,134 @@ public class PlayerActivity extends AppCompatActivity
         super.onResume();
         if (bound && service != null) {
             service.setPlaybackListener(this);
-            updateUiFromService();
+            service.setCrowdNoiseListener(this);
+            updatePlaybackUi(service.isPlaying());
         }
+    }
+
+    /** Back button minimises the app instead of destroying the Activity.
+     *  The stream keeps playing and the user returns here via the notification
+     *  or the recent-apps switcher — no need to restart the stream. */
+    @Override
+    public void onBackPressed() {
+        moveTaskToBack(true);
     }
 
     @Override
     protected void onDestroy() {
-        if (bound) {
-            unbindService(connection);
-            bound = false;
-        }
+        if (bound) { unbindService(connection); bound = false; }
         super.onDestroy();
     }
 
-    // -------------------------------------------------------------------------
-    // View setup
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // View wiring
+    // =========================================================================
 
     private void bindViews() {
-        btnPauseTop        = findViewById(R.id.btn_pause_top);
-        btnResumeBottom    = findViewById(R.id.btn_resume_bottom);
-        btnSkipToLive      = findViewById(R.id.btn_skip_to_live);
-        btnStop            = findViewById(R.id.btn_stop);
-        btnForceGame       = findViewById(R.id.btn_force_game);
-        btnForceCommercial = findViewById(R.id.btn_force_commercial);
         textStreamTitle    = findViewById(R.id.text_player_title);
         textStreamSubtitle = findViewById(R.id.text_player_subtitle);
         textPlaybackStatus = findViewById(R.id.text_playback_status);
-        textVolumeStatus   = findViewById(R.id.text_volume_status);
-        iconVolume         = findViewById(R.id.icon_volume);
+        textVolumeMode     = findViewById(R.id.text_volume_mode);
+        textEnergyLevel    = findViewById(R.id.text_energy_level);
+        progressEnergy     = findViewById(R.id.progress_energy);
+        btnPause           = findViewById(R.id.btn_pause);
+        btnResume          = findViewById(R.id.btn_resume);
+        btnSkipToLive      = findViewById(R.id.btn_skip_to_live);
+        btnStop            = findViewById(R.id.btn_stop);
+        btnModeGame        = findViewById(R.id.btn_mode_game);
+        btnModeAds         = findViewById(R.id.btn_mode_ads);
+        btnModeAuto        = findViewById(R.id.btn_mode_auto);
     }
 
     private void setupClickListeners() {
-        btnPauseTop.setOnClickListener(v -> {
+        btnPause.setOnClickListener(v -> {
             if (bound && service != null) service.pause();
         });
-
-        btnResumeBottom.setOnClickListener(v -> {
+        btnResume.setOnClickListener(v -> {
             if (bound && service != null) service.resume();
         });
-
         btnSkipToLive.setOnClickListener(v -> {
             if (bound && service != null) {
                 service.skipToLive();
                 Toast.makeText(this, "Jumping to live…", Toast.LENGTH_SHORT).show();
             }
         });
-
         btnStop.setOnClickListener(v -> {
             if (bound && service != null) service.stopStream();
             finish();
         });
 
-        btnForceGame.setOnClickListener(v -> {
-            autoDetectEnabled = false; // pause auto-detect while user has control
-            if (bound && service != null) service.setCommercialVolume(false);
-            if (service != null) service.forceDetectorState(false);
-            updateVolumeUi(false);
-            // Re-enable auto-detect after a short grace period
-            btnForceGame.postDelayed(() -> autoDetectEnabled = true, 8000);
-        });
-
-        btnForceCommercial.setOnClickListener(v -> {
-            autoDetectEnabled = false;
-            if (bound && service != null) service.setCommercialVolume(true);
-            if (service != null) service.forceDetectorState(true);
-            updateVolumeUi(true);
-            btnForceCommercial.postDelayed(() -> autoDetectEnabled = true, 8000);
-        });
+        btnModeGame.setOnClickListener(v -> applyVolumeMode(VolumeMode.GAME));
+        btnModeAds.setOnClickListener(v  -> applyVolumeMode(VolumeMode.ADS));
+        btnModeAuto.setOnClickListener(v -> applyVolumeMode(VolumeMode.AUTO));
     }
 
     private void displayStreamInfo() {
-        if (textStreamTitle != null)    textStreamTitle.setText(streamTitle != null ? streamTitle : "");
-        if (textStreamSubtitle != null) textStreamSubtitle.setText(streamSubtitle != null ? streamSubtitle : "");
+        textStreamTitle.setText(streamTitle != null ? streamTitle : "");
+        textStreamSubtitle.setText(streamSubtitle != null ? streamSubtitle : "");
     }
 
-    // -------------------------------------------------------------------------
-    // Service binding
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Volume mode state machine
+    // =========================================================================
 
-    private void startAndBindService() {
-        Intent serviceIntent = new Intent(this, PlaybackService.class);
-        ContextCompat.startForegroundService(this, serviceIntent);
-        bindService(serviceIntent, connection, BIND_AUTO_CREATE);
+    /**
+     * Switch to a volume mode. In GAME and ADS the detector keeps running
+     * (so the energy meter stays live) but its state-change callbacks are
+     * ignored. Switching back to AUTO immediately hands control back to the
+     * detector — whatever state it's currently measuring takes effect.
+     */
+    private void applyVolumeMode(VolumeMode mode) {
+        volumeMode = mode;
+
+        if (service != null) {
+            switch (mode) {
+                case GAME:
+                    service.setCommercialVolume(false);
+                    service.resetDetectorCounters();
+                    break;
+                case ADS:
+                    service.setCommercialVolume(true);
+                    service.resetDetectorCounters();
+                    break;
+                case AUTO:
+                    // Apply whatever the detector currently believes
+                    service.setCommercialVolume(service.detectorIsInCommercial());
+                    break;
+            }
+        }
+
+        updateModButtonUi();
+        updateVolumeModeLabel();
     }
 
-    // -------------------------------------------------------------------------
+    private void updateModButtonUi() {
+        // Highlight the active button; grey out the others
+        btnModeGame.setAlpha(volumeMode == VolumeMode.GAME ? 1.0f : 0.45f);
+        btnModeAds.setAlpha(volumeMode  == VolumeMode.ADS  ? 1.0f : 0.45f);
+        btnModeAuto.setAlpha(volumeMode == VolumeMode.AUTO ? 1.0f : 0.45f);
+    }
+
+    private void updateVolumeModeLabel() {
+        switch (volumeMode) {
+            case GAME: textVolumeMode.setText("🔊 Game (manual — full volume)"); break;
+            case ADS:  textVolumeMode.setText("🔇 Ads (manual — 20% volume)");  break;
+            case AUTO:
+                boolean inAd = service != null && service.detectorIsInCommercial();
+                textVolumeMode.setText(inAd
+                        ? "🤖 Auto → Ads detected"
+                        : "🤖 Auto → Game detected");
+                break;
+        }
+    }
+
+    // =========================================================================
     // PlaybackService.PlaybackListener
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     @Override
     public void onPlaybackStateChanged(boolean isPlaying) {
-        runOnUiThread(() -> {
-            textPlaybackStatus.setText(isPlaying ? "▶ Playing" : "⏸ Paused");
-            btnPauseTop.setEnabled(isPlaying);
-            btnResumeBottom.setEnabled(!isPlaying);
-            btnSkipToLive.setEnabled(!isPlaying);
-        });
+        runOnUiThread(() -> updatePlaybackUi(isPlaying));
     }
 
     @Override
@@ -221,44 +246,71 @@ public class PlayerActivity extends AppCompatActivity
                 "Playback error: " + message, Toast.LENGTH_LONG).show());
     }
 
-    private void updateUiFromService() {
-        if (service == null) return;
-        onPlaybackStateChanged(service.isPlaying());
-        updateVolumeUi(service.isCommercialVolume());
+    private void updatePlaybackUi(boolean isPlaying) {
+        textPlaybackStatus.setText(isPlaying ? "▶  Playing" : "⏸  Paused");
+        btnPause.setEnabled(isPlaying);
+        btnResume.setEnabled(!isPlaying);
+        btnSkipToLive.setEnabled(!isPlaying);
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // CrowdNoiseDetector.Listener
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     @Override
     public void onCommercialDetected() {
-        if (!autoDetectEnabled) return;
-        if (bound && service != null) service.setCommercialVolume(true);
-        updateVolumeUi(true);
+        if (volumeMode != VolumeMode.AUTO) return;
+        if (service != null) service.setCommercialVolume(true);
+        runOnUiThread(this::updateVolumeModeLabel);
     }
 
     @Override
     public void onGameResumed() {
-        if (!autoDetectEnabled) return;
-        if (bound && service != null) service.setCommercialVolume(false);
-        updateVolumeUi(false);
+        if (volumeMode != VolumeMode.AUTO) return;
+        if (service != null) service.setCommercialVolume(false);
+        runOnUiThread(this::updateVolumeModeLabel);
     }
 
-    private void updateVolumeUi(boolean commercial) {
+    /**
+     * Called ~10x/sec from the detector with the current smoothed energy.
+     * Updates the live level meter regardless of mode — so the user can
+     * always see where the signal is relative to the threshold.
+     */
+    @Override
+    public void onEnergyUpdate(float energy, float threshold) {
         runOnUiThread(() -> {
-            textVolumeStatus.setText(commercial ? "🔇 Commercial (20%)" : "🔊 Game volume (100%)");
-            btnForceGame.setEnabled(commercial);
-            btnForceCommercial.setEnabled(!commercial);
+            // Display raw values for calibration
+            textEnergyLevel.setText(String.format(
+                    "Level: %.4f  |  Threshold: %.4f", energy, threshold));
+
+            // Progress bar: fill proportional to energy/threshold, capped at 200%
+            // so the bar hits full at threshold and overflows visibly during game play.
+            int pct = (int) Math.min((energy / threshold) * 50f, 100);
+            progressEnergy.setProgress(pct);
+
+            // Tint the bar: green = above threshold (crowd), red = below (ads/silence)
+            int color = energy >= threshold
+                    ? 0xFF2E7D32   // green
+                    : 0xFFB71C1C;  // red
+            progressEnergy.getProgressDrawable().setTint(color);
         });
     }
 
-    // -------------------------------------------------------------------------
-    // Permissions
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Service binding
+    // =========================================================================
 
-    private void requestPermissionsIfNeeded() {
-        // Android 13+ notification permission
+    private void startAndBindService() {
+        Intent si = new Intent(this, PlaybackService.class);
+        ContextCompat.startForegroundService(this, si);
+        bindService(si, connection, BIND_AUTO_CREATE);
+    }
+
+    // =========================================================================
+    // Permissions
+    // =========================================================================
+
+    private void requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -267,14 +319,10 @@ public class PlayerActivity extends AppCompatActivity
                         REQ_NOTIFICATION);
             }
         }
-
-        // No microphone permission needed — detector runs inside ExoPlayer's audio pipeline
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
+    public void onRequestPermissionsResult(int req, @NonNull String[] perms, @NonNull int[] results) {
+        super.onRequestPermissionsResult(req, perms, results);
     }
 }
