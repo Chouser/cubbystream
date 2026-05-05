@@ -67,9 +67,9 @@ public class PlayerActivity extends AppCompatActivity
     private Button      btnSkipToLive;
     private Button      btnStop;
     private LinearLayout layoutSeekRow;
-    private Button      btnModeGame;
-    private Button      btnModeAds;
-    private Button      btnModeAuto;
+    private TextView    btnModeGame;
+    private TextView    btnModeAds;
+    private TextView    btnModeAuto;
 
     // ---- Service ----
     private PlaybackService service;
@@ -236,8 +236,11 @@ public class PlayerActivity extends AppCompatActivity
         layoutSeekRow.postDelayed(() -> {
             layoutSeekRow.setVisibility(android.view.View.VISIBLE);
             boolean live = service.isLiveStream();
+            // Alpha fades the button visually; click guard is in the listener
+            btnRewind.setAlpha(live ? 1.0f : 0.35f);
             btnRewind.setEnabled(live);
-            btnRewind.setAlpha(live ? 1.0f : 0.4f);
+            // Disable Material's state list animator so alpha sticks
+            btnRewind.setStateListAnimator(null);
         }, 3000);
     }
 
