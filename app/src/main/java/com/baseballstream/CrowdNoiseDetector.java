@@ -31,7 +31,7 @@ public class CrowdNoiseDetector implements AudioProcessor {
     private static final int TRIGGER_FRAMES = 25;
 
     /** Adjustable threshold — expose for live display and future settings screen. */
-    public float threshold = 0.012f;
+    public float threshold = 200f;
 
     public interface Listener {
         void onCommercialDetected();
