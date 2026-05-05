@@ -59,6 +59,10 @@ public class CrowdNoiseDetector implements AudioProcessor {
     private int   smoothIdx = 0;
     private float smoothSum = 0f;
 
+    // UI throttle: fire onEnergyUpdate every N FFT frames (~4x/sec at 44100/2048)
+    private static final int UI_UPDATE_EVERY = 6;
+    private int uiFrameCount = 0;
+
     // State machine
     private int     belowCount   = 0;
     private int     aboveCount   = 0;
@@ -156,8 +160,11 @@ public class CrowdNoiseDetector implements AudioProcessor {
         float avg = smoothSum / SMOOTH_FRAMES;
         float snap = threshold; // capture for lambda
 
-        // Deliver energy update to UI for the level meter
-        mainHandler.post(() -> { if (listener != null) listener.onEnergyUpdate(avg, snap); });
+        // Deliver energy update to UI at ~4x/sec (every UI_UPDATE_EVERY frames)
+        if (++uiFrameCount >= UI_UPDATE_EVERY) {
+            uiFrameCount = 0;
+            mainHandler.post(() -> { if (listener != null) listener.onEnergyUpdate(avg, snap); });
+        }
 
         updateStateMachine(avg);
     }
@@ -232,7 +239,7 @@ public class CrowdNoiseDetector implements AudioProcessor {
     public boolean isInCommercial() { return inCommercial; }
 
     private void resetDetectionState() {
-        belowCount = aboveCount = accumPos = smoothIdx = 0;
+        belowCount = aboveCount = accumPos = smoothIdx = uiFrameCount = 0;
         smoothSum = 0f; inCommercial = false;
         for (int i = 0; i < SMOOTH_FRAMES; i++) smoothBuf[i] = 0f;
     }

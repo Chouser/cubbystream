@@ -29,7 +29,7 @@ public class PlaybackService extends LifecycleService {
     private static final int    NOTIF_ID   = 1001;
 
     public static final float NORMAL_VOLUME  = 1.0f;
-    public static final float REDUCED_VOLUME = 0.20f;
+    public static final float REDUCED_VOLUME = 0.10f;
 
     public static final String ACTION_PAUSE     = "com.baseballstream.PAUSE";
     public static final String ACTION_RESUME    = "com.baseballstream.RESUME";

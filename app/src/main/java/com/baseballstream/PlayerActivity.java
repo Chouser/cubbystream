@@ -34,6 +34,11 @@ public class PlayerActivity extends AppCompatActivity
     private enum VolumeMode { AUTO, GAME, ADS }
     private VolumeMode volumeMode = VolumeMode.AUTO;
 
+    // ---- Logging ----
+    private final DetectionLogger logger = new DetectionLogger();
+    // onEnergyUpdate fires 4x/sec; log every 4th call = 1 sample/sec
+    private int logFrameCount = 0;
+
     // ---- Views ----
     private TextView    textStreamTitle;
     private TextView    textStreamSubtitle;
@@ -69,6 +74,7 @@ public class PlayerActivity extends AppCompatActivity
             service.playStream(streamUrl, streamTitle, streamType);
             updatePlaybackUi(service.isPlaying());
             applyVolumeMode(VolumeMode.AUTO); // always start in Auto on a new stream
+            logger.open(PlayerActivity.this, streamTitle != null ? streamTitle : "stream");
         }
 
         @Override
@@ -125,6 +131,7 @@ public class PlayerActivity extends AppCompatActivity
 
     @Override
     protected void onDestroy() {
+        logger.close();
         if (bound) { unbindService(connection); bound = false; }
         super.onDestroy();
     }
@@ -163,6 +170,7 @@ public class PlayerActivity extends AppCompatActivity
             }
         });
         btnStop.setOnClickListener(v -> {
+            logger.close();
             if (bound && service != null) service.stopStream();
             finish();
         });
@@ -278,6 +286,14 @@ public class PlayerActivity extends AppCompatActivity
      */
     @Override
     public void onEnergyUpdate(float energy, float threshold) {
+        // Log at 1x/sec (every 4th call at 4x/sec update rate)
+        if (++logFrameCount >= 4) {
+            logFrameCount = 0;
+            boolean detectorInAds = service != null && service.detectorIsInCommercial();
+            String modeStr = volumeMode.name().toLowerCase();
+            logger.log(energy, threshold, detectorInAds, modeStr,
+                    streamTitle != null ? streamTitle : "");
+        }
         runOnUiThread(() -> {
             // Display raw values for calibration
             textEnergyLevel.setText(String.format(
