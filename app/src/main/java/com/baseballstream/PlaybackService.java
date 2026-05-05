@@ -12,6 +12,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.lifecycle.LifecycleService;
+import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
@@ -157,6 +158,28 @@ public class PlaybackService extends LifecycleService {
         if (player == null) return;
         if (player.isCurrentMediaItemLive()) player.seekToDefaultPosition();
         resume();
+    }
+
+    /** Seek back 15 seconds. Clamped to start of DVR window by ExoPlayer. */
+    public void rewindFifteenSeconds() {
+        if (player == null) return;
+        long target = player.getCurrentPosition() - 15_000L;
+        player.seekTo(Math.max(target, 0));
+    }
+
+    /**
+     * Returns the live offset in milliseconds, or -1 if not a live stream
+     * or offset not yet known. Updates correctly while paused.
+     */
+    public long getLiveOffsetMs() {
+        if (player == null) return -1L;
+        if (!player.isCurrentMediaItemLive()) return -1L;
+        long offset = player.getCurrentLiveOffset();
+        return offset == androidx.media3.common.C.TIME_UNSET ? -1L : offset;
+    }
+
+    public boolean isLiveStream() {
+        return player != null && player.isCurrentMediaItemLive();
     }
 
     public void setVolume(float volume) {

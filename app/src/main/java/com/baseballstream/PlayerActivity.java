@@ -7,7 +7,9 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -17,6 +19,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.media3.common.Player;
+
+import com.google.android.material.button.MaterialButtonToggleGroup;
 
 public class PlayerActivity extends AppCompatActivity
         implements PlaybackService.PlaybackListener,
@@ -30,26 +35,38 @@ public class PlayerActivity extends AppCompatActivity
     private static final int REQ_NOTIFICATION = 101;
 
     // ---- Volume mode ----
-    /** Three mutually exclusive modes. AUTO lets the detector decide. */
     private enum VolumeMode { AUTO, GAME, ADS }
     private VolumeMode volumeMode = VolumeMode.AUTO;
 
     // ---- Logging ----
     private final DetectionLogger logger = new DetectionLogger();
-    // onEnergyUpdate fires 4x/sec; log every 4th call = 1 sample/sec
     private int logFrameCount = 0;
+
+    // ---- Live offset polling ----
+    // Runs every second to update the live offset display independently
+    // of the energy update rate. Continues correctly while paused.
+    private final Handler offsetHandler = new Handler(Looper.getMainLooper());
+    private final Runnable offsetUpdater = new Runnable() {
+        @Override public void run() {
+            updateLiveOffsetDisplay();
+            offsetHandler.postDelayed(this, 1000);
+        }
+    };
 
     // ---- Views ----
     private TextView    textStreamTitle;
     private TextView    textStreamSubtitle;
     private TextView    textPlaybackStatus;
-    private TextView    textVolumeMode;       // current mode label
-    private TextView    textEnergyLevel;      // live FFT reading
-    private ProgressBar progressEnergy;       // bar showing energy vs threshold
+    private TextView    textLiveOffset;
+    private TextView    textVolumeMode;
+    private TextView    textEnergyLevel;
+    private ProgressBar progressEnergy;
     private Button      btnPause;
     private Button      btnResume;
+    private Button      btnRewind;
     private Button      btnSkipToLive;
     private Button      btnStop;
+    private MaterialButtonToggleGroup toggleVolumeMode;
     private Button      btnModeGame;
     private Button      btnModeAds;
     private Button      btnModeAuto;
@@ -64,17 +81,29 @@ public class PlayerActivity extends AppCompatActivity
     private String streamSubtitle;
     private String streamType;
 
+    // ---- Player listener for seek/live changes ----
+    private final Player.Listener playerListener = new Player.Listener() {
+        @Override
+        public void onPositionDiscontinuity(
+                Player.PositionInfo oldPos, Player.PositionInfo newPos, int reason) {
+            runOnUiThread(() -> updateLiveOffsetDisplay());
+        }
+    };
+
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder binder) {
             service = ((PlaybackService.LocalBinder) binder).getService();
             service.setPlaybackListener(PlayerActivity.this);
             service.setCrowdNoiseListener(PlayerActivity.this);
+            if (service.getPlayer() != null)
+                service.getPlayer().addListener(playerListener);
             bound = true;
             service.playStream(streamUrl, streamTitle, streamType);
             updatePlaybackUi(service.isPlaying());
-            applyVolumeMode(VolumeMode.AUTO); // always start in Auto on a new stream
+            applyVolumeMode(VolumeMode.AUTO);
             logger.open(PlayerActivity.this, streamTitle != null ? streamTitle : "stream");
+            offsetHandler.post(offsetUpdater);
         }
 
         @Override
@@ -106,6 +135,7 @@ public class PlayerActivity extends AppCompatActivity
 
         bindViews();
         setupClickListeners();
+        setupToggleGroup();
         displayStreamInfo();
         requestNotificationPermission();
         startAndBindService();
@@ -118,12 +148,16 @@ public class PlayerActivity extends AppCompatActivity
             service.setPlaybackListener(this);
             service.setCrowdNoiseListener(this);
             updatePlaybackUi(service.isPlaying());
+            offsetHandler.post(offsetUpdater);
         }
     }
 
-    /** Back button minimises the app instead of destroying the Activity.
-     *  The stream keeps playing and the user returns here via the notification
-     *  or the recent-apps switcher — no need to restart the stream. */
+    @Override
+    protected void onPause() {
+        super.onPause();
+        offsetHandler.removeCallbacks(offsetUpdater);
+    }
+
     @Override
     public void onBackPressed() {
         moveTaskToBack(true);
@@ -131,8 +165,14 @@ public class PlayerActivity extends AppCompatActivity
 
     @Override
     protected void onDestroy() {
+        offsetHandler.removeCallbacks(offsetUpdater);
         logger.close();
-        if (bound) { unbindService(connection); bound = false; }
+        if (bound) {
+            if (service != null && service.getPlayer() != null)
+                service.getPlayer().removeListener(playerListener);
+            unbindService(connection);
+            bound = false;
+        }
         super.onDestroy();
     }
 
@@ -144,13 +184,16 @@ public class PlayerActivity extends AppCompatActivity
         textStreamTitle    = findViewById(R.id.text_player_title);
         textStreamSubtitle = findViewById(R.id.text_player_subtitle);
         textPlaybackStatus = findViewById(R.id.text_playback_status);
+        textLiveOffset     = findViewById(R.id.text_live_offset);
         textVolumeMode     = findViewById(R.id.text_volume_mode);
         textEnergyLevel    = findViewById(R.id.text_energy_level);
         progressEnergy     = findViewById(R.id.progress_energy);
         btnPause           = findViewById(R.id.btn_pause);
         btnResume          = findViewById(R.id.btn_resume);
+        btnRewind          = findViewById(R.id.btn_rewind);
         btnSkipToLive      = findViewById(R.id.btn_skip_to_live);
         btnStop            = findViewById(R.id.btn_stop);
+        toggleVolumeMode   = findViewById(R.id.toggle_volume_mode);
         btnModeGame        = findViewById(R.id.btn_mode_game);
         btnModeAds         = findViewById(R.id.btn_mode_ads);
         btnModeAuto        = findViewById(R.id.btn_mode_auto);
@@ -163,21 +206,29 @@ public class PlayerActivity extends AppCompatActivity
         btnResume.setOnClickListener(v -> {
             if (bound && service != null) service.resume();
         });
+        btnRewind.setOnClickListener(v -> {
+            if (bound && service != null) service.rewindFifteenSeconds();
+        });
         btnSkipToLive.setOnClickListener(v -> {
-            if (bound && service != null) {
-                service.skipToLive();
-                Toast.makeText(this, "Jumping to live…", Toast.LENGTH_SHORT).show();
-            }
+            if (bound && service != null) service.skipToLive();
         });
         btnStop.setOnClickListener(v -> {
             logger.close();
+            offsetHandler.removeCallbacks(offsetUpdater);
             if (bound && service != null) service.stopStream();
             finish();
         });
+    }
 
-        btnModeGame.setOnClickListener(v -> applyVolumeMode(VolumeMode.GAME));
-        btnModeAds.setOnClickListener(v  -> applyVolumeMode(VolumeMode.ADS));
-        btnModeAuto.setOnClickListener(v -> applyVolumeMode(VolumeMode.AUTO));
+    private void setupToggleGroup() {
+        toggleVolumeMode.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return; // only act on the newly selected button
+            if (checkedId == R.id.btn_mode_game)      applyVolumeMode(VolumeMode.GAME);
+            else if (checkedId == R.id.btn_mode_ads)  applyVolumeMode(VolumeMode.ADS);
+            else if (checkedId == R.id.btn_mode_auto) applyVolumeMode(VolumeMode.AUTO);
+        });
+        // Pre-select Auto
+        toggleVolumeMode.check(R.id.btn_mode_auto);
     }
 
     private void displayStreamInfo() {
@@ -186,18 +237,41 @@ public class PlayerActivity extends AppCompatActivity
     }
 
     // =========================================================================
-    // Volume mode state machine
+    // Live offset display
     // =========================================================================
 
-    /**
-     * Switch to a volume mode. In GAME and ADS the detector keeps running
-     * (so the energy meter stays live) but its state-change callbacks are
-     * ignored. Switching back to AUTO immediately hands control back to the
-     * detector — whatever state it's currently measuring takes effect.
-     */
+    private void updateLiveOffsetDisplay() {
+        if (service == null) { textLiveOffset.setText(""); return; }
+
+        if (!service.isLiveStream()) {
+            textLiveOffset.setText("");
+            return;
+        }
+
+        long offsetMs = service.getLiveOffsetMs();
+        if (offsetMs < 0) {
+            textLiveOffset.setText("live offset: —");
+            return;
+        }
+
+        long totalSecs = offsetMs / 1000;
+        if (totalSecs < 5) {
+            textLiveOffset.setText("● Live");
+        } else if (totalSecs < 60) {
+            textLiveOffset.setText(totalSecs + "s behind");
+        } else {
+            long mins = totalSecs / 60;
+            long secs = totalSecs % 60;
+            textLiveOffset.setText(String.format("%dm %02ds behind", mins, secs));
+        }
+    }
+
+    // =========================================================================
+    // Volume mode
+    // =========================================================================
+
     private void applyVolumeMode(VolumeMode mode) {
         volumeMode = mode;
-
         if (service != null) {
             switch (mode) {
                 case GAME:
@@ -209,27 +283,17 @@ public class PlayerActivity extends AppCompatActivity
                     service.resetDetectorCounters();
                     break;
                 case AUTO:
-                    // Apply whatever the detector currently believes
                     service.setCommercialVolume(service.detectorIsInCommercial());
                     break;
             }
         }
-
-        updateModButtonUi();
         updateVolumeModeLabel();
-    }
-
-    private void updateModButtonUi() {
-        // Highlight the active button; grey out the others
-        btnModeGame.setAlpha(volumeMode == VolumeMode.GAME ? 1.0f : 0.45f);
-        btnModeAds.setAlpha(volumeMode  == VolumeMode.ADS  ? 1.0f : 0.45f);
-        btnModeAuto.setAlpha(volumeMode == VolumeMode.AUTO ? 1.0f : 0.45f);
     }
 
     private void updateVolumeModeLabel() {
         switch (volumeMode) {
             case GAME: textVolumeMode.setText("🔊 Game (manual — full volume)"); break;
-            case ADS:  textVolumeMode.setText("🔇 Ads (manual — 20% volume)");  break;
+            case ADS:  textVolumeMode.setText("🔇 Ads (manual — 10% volume)");  break;
             case AUTO:
                 boolean inAd = service != null && service.detectorIsInCommercial();
                 textVolumeMode.setText(inAd
@@ -258,7 +322,6 @@ public class PlayerActivity extends AppCompatActivity
         textPlaybackStatus.setText(isPlaying ? "▶  Playing" : "⏸  Paused");
         btnPause.setEnabled(isPlaying);
         btnResume.setEnabled(!isPlaying);
-        btnSkipToLive.setEnabled(!isPlaying);
     }
 
     // =========================================================================
@@ -279,41 +342,26 @@ public class PlayerActivity extends AppCompatActivity
         runOnUiThread(this::updateVolumeModeLabel);
     }
 
-    /**
-     * Called ~10x/sec from the detector with the current smoothed energy.
-     * Updates the live level meter regardless of mode — so the user can
-     * always see where the signal is relative to the threshold.
-     */
     @Override
     public void onEnergyUpdate(float energy, float threshold) {
-        // Log at 1x/sec (every 4th call at 4x/sec update rate)
         if (++logFrameCount >= 4) {
             logFrameCount = 0;
             boolean detectorInAds = service != null && service.detectorIsInCommercial();
-            String modeStr = volumeMode.name().toLowerCase();
-            logger.log(energy, threshold, detectorInAds, modeStr,
+            logger.log(energy, threshold, detectorInAds, volumeMode.name().toLowerCase(),
                     streamTitle != null ? streamTitle : "");
         }
         runOnUiThread(() -> {
-            // Display raw values for calibration
             textEnergyLevel.setText(String.format(
-                    "Level: %.4f  |  Threshold: %.4f", energy, threshold));
-
-            // Progress bar: fill proportional to energy/threshold, capped at 200%
-            // so the bar hits full at threshold and overflows visibly during game play.
+                    "Level: %.1f  |  Threshold: %.1f", energy, threshold));
             int pct = (int) Math.min((energy / threshold) * 50f, 100);
             progressEnergy.setProgress(pct);
-
-            // Tint the bar: green = above threshold (crowd), red = below (ads/silence)
-            int color = energy >= threshold
-                    ? 0xFF2E7D32   // green
-                    : 0xFFB71C1C;  // red
+            int color = energy >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
             progressEnergy.getProgressDrawable().setTint(color);
         });
     }
 
     // =========================================================================
-    // Service binding
+    // Service binding / permissions
     // =========================================================================
 
     private void startAndBindService() {
@@ -321,10 +369,6 @@ public class PlayerActivity extends AppCompatActivity
         ContextCompat.startForegroundService(this, si);
         bindService(si, connection, BIND_AUTO_CREATE);
     }
-
-    // =========================================================================
-    // Permissions
-    // =========================================================================
 
     private void requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -338,7 +382,8 @@ public class PlayerActivity extends AppCompatActivity
     }
 
     @Override
-    public void onRequestPermissionsResult(int req, @NonNull String[] perms, @NonNull int[] results) {
+    public void onRequestPermissionsResult(int req, @NonNull String[] perms,
+                                           @NonNull int[] results) {
         super.onRequestPermissionsResult(req, perms, results);
     }
 }

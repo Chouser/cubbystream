@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Layout structure:
-    TOP BAR      — title, subtitle, playback status, energy meter
-    MIDDLE       — Skip to Live + Stop (secondary controls)
-    BOTTOM BAR   — Pause | Resume side-by-side, then Game/Ads/Auto row
+    TOP BAR    — title, subtitle, playback status, live offset, volume label,
+                 energy meter, Stop button
+    MIDDLE     — spacer (keeps bottom bar anchored down)
+    BOTTOM BAR — ⏮ 15s | ▶▶ Live, then Pause | Resume, then Game/Ads/Auto toggle
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/bg_dark">
 
     <!-- ===================================================================== -->
-    <!-- TOP BAR: stream info + status + energy meter                          -->
+    <!-- TOP BAR                                                               -->
     <!-- ===================================================================== -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -25,7 +27,6 @@
         android:paddingBottom="16dp"
         android:elevation="4dp">
 
-        <!-- Title row -->
         <TextView
             android:id="@+id/text_player_title"
             android:layout_width="match_parent"
@@ -43,18 +44,35 @@
             android:layout_height="wrap_content"
             android:textSize="13sp"
             android:textColor="@color/text_secondary"
-            android:layout_marginBottom="12dp"/>
+            android:layout_marginBottom="10dp"/>
 
-        <!-- Playback state -->
-        <TextView
-            android:id="@+id/text_playback_status"
-            android:layout_width="wrap_content"
+        <!-- Playback state + live offset on one line -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Connecting…"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:layout_marginBottom="6dp"/>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/text_playback_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Connecting…"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"/>
+
+            <TextView
+                android:id="@+id/text_live_offset"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/text_secondary"/>
+        </LinearLayout>
 
         <!-- Volume mode label -->
         <TextView
@@ -64,60 +82,34 @@
             android:text="🤖 Auto → detecting…"
             android:textSize="14sp"
             android:textColor="@color/text_secondary"
-            android:layout_marginBottom="10dp"/>
+            android:layout_marginBottom="8dp"/>
 
-        <!-- Energy meter label -->
+        <!-- Energy meter -->
         <TextView
             android:id="@+id/text_energy_level"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Level: —  |  Threshold: 0.0120"
+            android:text="Level: —"
             android:textSize="11sp"
             android:fontFamily="monospace"
             android:textColor="@color/text_secondary"
             android:layout_marginBottom="4dp"/>
 
-        <!-- Energy bar: green = crowd noise present, red = silence/ads -->
         <ProgressBar
             android:id="@+id/progress_energy"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="10dp"
             android:max="100"
-            android:progress="0"/>
+            android:progress="0"
+            android:layout_marginBottom="14dp"/>
 
-    </LinearLayout>
-
-    <!-- ===================================================================== -->
-    <!-- MIDDLE: Skip to Live + Stop                                           -->
-    <!-- ===================================================================== -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:padding="24dp">
-
-        <Button
-            android:id="@+id/btn_skip_to_live"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="10dp"
-            android:text="⏭  Skip to Live"
-            android:textSize="15sp"
-            android:backgroundTint="@color/btn_live"
-            android:textColor="@color/text_on_accent"
-            style="@style/Widget.MaterialComponents.Button"/>
-
+        <!-- Stop — prominent but in the info area, not near play controls -->
         <Button
             android:id="@+id/btn_stop"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_weight="1"
-            android:layout_marginStart="10dp"
-            android:text="■  Stop"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="■  Stop Stream"
             android:textSize="15sp"
             android:backgroundTint="@color/btn_stop"
             android:textColor="@color/text_on_accent"
@@ -126,7 +118,15 @@
     </LinearLayout>
 
     <!-- ===================================================================== -->
-    <!-- BOTTOM BAR: Pause/Resume, then Game/Ads/Auto                         -->
+    <!-- MIDDLE spacer                                                          -->
+    <!-- ===================================================================== -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- ===================================================================== -->
+    <!-- BOTTOM BAR                                                             -->
     <!-- ===================================================================== -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -139,8 +139,40 @@
         android:paddingBottom="20dp"
         android:elevation="4dp">
 
-        <!-- Pause and Resume side-by-side so they're in the same region
-             but clearly labelled — large enough to hit easily, distinct colours -->
+        <!-- Seek row: ⏮ 15s  |  ▶▶ Live -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="10dp">
+
+            <Button
+                android:id="@+id/btn_rewind"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="⏮ 15s"
+                android:textSize="16sp"
+                android:backgroundTint="@color/btn_live"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+            <Button
+                android:id="@+id/btn_skip_to_live"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="▶▶ Live"
+                android:textSize="16sp"
+                android:backgroundTint="@color/btn_live"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+        </LinearLayout>
+
+        <!-- Pause | Resume row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -175,8 +207,7 @@
 
         </LinearLayout>
 
-        <!-- Volume mode selector: three mutually exclusive buttons.
-             Active button is full opacity; inactive at 45%. -->
+        <!-- Volume mode: MaterialButtonToggleGroup (mutually exclusive) -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -185,51 +216,52 @@
             android:textColor="@color/text_secondary"
             android:letterSpacing="0.15"
             android:gravity="center"
-            android:layout_marginBottom="8dp"/>
+            android:layout_marginBottom="6dp"/>
 
-        <LinearLayout
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/toggle_volume_mode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            app:singleSelection="true"
+            app:selectionRequired="true">
 
             <Button
                 android:id="@+id/btn_mode_game"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="5dp"
                 android:text="🔊 Game"
-                android:textSize="13sp"
-                android:backgroundTint="@color/btn_game"
-                android:textColor="@color/text_on_accent"
-                style="@style/Widget.MaterialComponents.Button"/>
+                android:textSize="12sp"
+                android:textColor="@color/toggle_game_color"
+                app:backgroundTint="@color/btn_game"
+                app:strokeColor="@color/btn_game"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 
             <Button
                 android:id="@+id/btn_mode_ads"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
                 android:layout_weight="1"
-                android:layout_marginStart="5dp"
-                android:layout_marginEnd="5dp"
                 android:text="🔇 Ads"
-                android:textSize="13sp"
-                android:backgroundTint="@color/btn_commercial"
-                android:textColor="@color/text_on_accent"
-                style="@style/Widget.MaterialComponents.Button"/>
+                android:textSize="12sp"
+                android:textColor="@color/toggle_ads_color"
+                app:backgroundTint="@color/btn_commercial"
+                app:strokeColor="@color/btn_commercial"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 
             <Button
                 android:id="@+id/btn_mode_auto"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
                 android:layout_weight="1"
-                android:layout_marginStart="5dp"
                 android:text="🤖 Auto"
-                android:textSize="13sp"
-                android:backgroundTint="@color/accent"
-                android:textColor="@color/text_on_accent"
-                style="@style/Widget.MaterialComponents.Button"/>
+                android:textSize="12sp"
+                android:textColor="@color/toggle_auto_color"
+                app:backgroundTint="@color/accent"
+                app:strokeColor="@color/accent"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 
-        </LinearLayout>
+        </com.google.android.material.button.MaterialButtonToggleGroup>
 
     </LinearLayout>
 
