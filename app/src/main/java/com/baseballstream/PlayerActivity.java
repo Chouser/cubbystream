@@ -11,6 +11,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,7 +22,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.media3.common.Player;
 
-import com.google.android.material.button.MaterialButtonToggleGroup;
 
 public class PlayerActivity extends AppCompatActivity
         implements PlaybackService.PlaybackListener,
@@ -66,7 +66,7 @@ public class PlayerActivity extends AppCompatActivity
     private Button      btnRewind;
     private Button      btnSkipToLive;
     private Button      btnStop;
-    private MaterialButtonToggleGroup toggleVolumeMode;
+    private LinearLayout layoutSeekRow;
     private Button      btnModeGame;
     private Button      btnModeAds;
     private Button      btnModeAuto;
@@ -102,6 +102,8 @@ public class PlayerActivity extends AppCompatActivity
             service.playStream(streamUrl, streamTitle, streamType);
             updatePlaybackUi(service.isPlaying());
             applyVolumeMode(VolumeMode.AUTO);
+            // Show seek controls only for HLS streams that support DVR
+            updateSeekRowVisibility();
             logger.open(PlayerActivity.this, streamTitle != null ? streamTitle : "stream");
             offsetHandler.post(offsetUpdater);
         }
@@ -135,7 +137,6 @@ public class PlayerActivity extends AppCompatActivity
 
         bindViews();
         setupClickListeners();
-        setupToggleGroup();
         displayStreamInfo();
         requestNotificationPermission();
         startAndBindService();
@@ -193,7 +194,7 @@ public class PlayerActivity extends AppCompatActivity
         btnRewind          = findViewById(R.id.btn_rewind);
         btnSkipToLive      = findViewById(R.id.btn_skip_to_live);
         btnStop            = findViewById(R.id.btn_stop);
-        toggleVolumeMode   = findViewById(R.id.toggle_volume_mode);
+        layoutSeekRow      = findViewById(R.id.layout_seek_row);
         btnModeGame        = findViewById(R.id.btn_mode_game);
         btnModeAds         = findViewById(R.id.btn_mode_ads);
         btnModeAuto        = findViewById(R.id.btn_mode_auto);
@@ -220,17 +221,6 @@ public class PlayerActivity extends AppCompatActivity
         });
     }
 
-    private void setupToggleGroup() {
-        toggleVolumeMode.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-            if (!isChecked) return; // only act on the newly selected button
-            if (checkedId == R.id.btn_mode_game)      applyVolumeMode(VolumeMode.GAME);
-            else if (checkedId == R.id.btn_mode_ads)  applyVolumeMode(VolumeMode.ADS);
-            else if (checkedId == R.id.btn_mode_auto) applyVolumeMode(VolumeMode.AUTO);
-        });
-        // Pre-select Auto
-        toggleVolumeMode.check(R.id.btn_mode_auto);
-    }
-
     private void displayStreamInfo() {
         textStreamTitle.setText(streamTitle != null ? streamTitle : "");
         textStreamSubtitle.setText(streamSubtitle != null ? streamSubtitle : "");
@@ -239,6 +229,17 @@ public class PlayerActivity extends AppCompatActivity
     // =========================================================================
     // Live offset display
     // =========================================================================
+
+    private void updateSeekRowVisibility() {
+        if (service == null) return;
+        // Wait for ExoPlayer to parse stream headers before checking live status
+        layoutSeekRow.postDelayed(() -> {
+            layoutSeekRow.setVisibility(android.view.View.VISIBLE);
+            boolean live = service.isLiveStream();
+            btnRewind.setEnabled(live);
+            btnRewind.setAlpha(live ? 1.0f : 0.4f);
+        }, 3000);
+    }
 
     private void updateLiveOffsetDisplay() {
         if (service == null) { textLiveOffset.setText(""); return; }
@@ -288,6 +289,15 @@ public class PlayerActivity extends AppCompatActivity
             }
         }
         updateVolumeModeLabel();
+    }
+
+    private void updateModeButtonBorders() {
+        btnModeGame.setBackgroundResource(volumeMode == VolumeMode.GAME
+                ? R.drawable.bg_mode_game_selected : R.drawable.bg_mode_game_normal);
+        btnModeAds.setBackgroundResource(volumeMode == VolumeMode.ADS
+                ? R.drawable.bg_mode_ads_selected  : R.drawable.bg_mode_ads_normal);
+        btnModeAuto.setBackgroundResource(volumeMode == VolumeMode.AUTO
+                ? R.drawable.bg_mode_auto_selected : R.drawable.bg_mode_auto_normal);
     }
 
     private void updateVolumeModeLabel() {
