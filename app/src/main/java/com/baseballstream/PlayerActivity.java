@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.content.res.ColorStateList;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -67,9 +68,9 @@ public class PlayerActivity extends AppCompatActivity
     private Button      btnSkipToLive;
     private Button      btnStop;
     private LinearLayout layoutSeekRow;
-    private TextView    btnModeGame;
-    private TextView    btnModeAds;
-    private TextView    btnModeAuto;
+    private Button      btnModeGame;
+    private Button      btnModeAds;
+    private Button      btnModeAuto;
 
     // ---- Service ----
     private PlaybackService service;
@@ -102,8 +103,6 @@ public class PlayerActivity extends AppCompatActivity
             service.playStream(streamUrl, streamTitle, streamType);
             updatePlaybackUi(service.isPlaying());
             applyVolumeMode(VolumeMode.AUTO);
-            // Show seek controls only for HLS streams that support DVR
-            updateSeekRowVisibility();
             logger.open(PlayerActivity.this, streamTitle != null ? streamTitle : "stream");
             offsetHandler.post(offsetUpdater);
         }
@@ -219,6 +218,10 @@ public class PlayerActivity extends AppCompatActivity
             if (bound && service != null) service.stopStream();
             finish();
         });
+
+        btnModeGame.setOnClickListener(v -> applyVolumeMode(VolumeMode.GAME));
+        btnModeAds.setOnClickListener(v  -> applyVolumeMode(VolumeMode.ADS));
+        btnModeAuto.setOnClickListener(v -> applyVolumeMode(VolumeMode.AUTO));
     }
 
     private void displayStreamInfo() {
@@ -229,20 +232,6 @@ public class PlayerActivity extends AppCompatActivity
     // =========================================================================
     // Live offset display
     // =========================================================================
-
-    private void updateSeekRowVisibility() {
-        if (service == null) return;
-        // Wait for ExoPlayer to parse stream headers before checking live status
-        layoutSeekRow.postDelayed(() -> {
-            layoutSeekRow.setVisibility(android.view.View.VISIBLE);
-            boolean live = service.isLiveStream();
-            // Alpha fades the button visually; click guard is in the listener
-            btnRewind.setAlpha(live ? 1.0f : 0.35f);
-            btnRewind.setEnabled(live);
-            // Disable Material's state list animator so alpha sticks
-            btnRewind.setStateListAnimator(null);
-        }, 3000);
-    }
 
     private void updateLiveOffsetDisplay() {
         if (service == null) { textLiveOffset.setText(""); return; }
@@ -295,12 +284,13 @@ public class PlayerActivity extends AppCompatActivity
     }
 
     private void updateModeButtonBorders() {
-        btnModeGame.setBackgroundResource(volumeMode == VolumeMode.GAME
-                ? R.drawable.bg_mode_game_selected : R.drawable.bg_mode_game_normal);
-        btnModeAds.setBackgroundResource(volumeMode == VolumeMode.ADS
-                ? R.drawable.bg_mode_ads_selected  : R.drawable.bg_mode_ads_normal);
-        btnModeAuto.setBackgroundResource(volumeMode == VolumeMode.AUTO
-                ? R.drawable.bg_mode_auto_selected : R.drawable.bg_mode_auto_normal);
+        int inactive = 0xFF555555;
+        btnModeGame.setBackgroundTintList(ColorStateList.valueOf(
+                volumeMode == VolumeMode.GAME ? 0xFF2E7D32 : inactive));
+        btnModeAds.setBackgroundTintList(ColorStateList.valueOf(
+                volumeMode == VolumeMode.ADS  ? 0xFF4A148C : inactive));
+        btnModeAuto.setBackgroundTintList(ColorStateList.valueOf(
+                volumeMode == VolumeMode.AUTO ? 0xFFD32F2F : inactive));
     }
 
     private void updateVolumeModeLabel() {

@@ -209,13 +209,13 @@
             android:gravity="center"
             android:layout_marginBottom="6dp"/>
 
-        <!-- Three mode selectors as TextViews so background swapping works reliably -->
+        <!-- Three independent mode buttons; selected gets its color, others go gray -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <TextView
+            <Button
                 android:id="@+id/btn_mode_game"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
@@ -223,13 +223,11 @@
                 android:layout_marginEnd="5dp"
                 android:text="🔊 Game"
                 android:textSize="13sp"
-                android:textColor="@color/text_primary"
-                android:gravity="center"
-                android:background="@drawable/bg_mode_game_normal"
-                android:clickable="true"
-                android:focusable="true"/>
+                android:textColor="@color/text_on_accent"
+                android:backgroundTint="@color/btn_inactive"
+                style="@style/Widget.MaterialComponents.Button"/>
 
-            <TextView
+            <Button
                 android:id="@+id/btn_mode_ads"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
@@ -238,13 +236,11 @@
                 android:layout_marginEnd="5dp"
                 android:text="🔇 Ads"
                 android:textSize="13sp"
-                android:textColor="@color/text_primary"
-                android:gravity="center"
-                android:background="@drawable/bg_mode_ads_normal"
-                android:clickable="true"
-                android:focusable="true"/>
+                android:textColor="@color/text_on_accent"
+                android:backgroundTint="@color/btn_inactive"
+                style="@style/Widget.MaterialComponents.Button"/>
 
-            <TextView
+            <Button
                 android:id="@+id/btn_mode_auto"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
@@ -252,11 +248,9 @@
                 android:layout_marginStart="5dp"
                 android:text="🤖 Auto"
                 android:textSize="13sp"
-                android:textColor="@color/text_primary"
-                android:gravity="center"
-                android:background="@drawable/bg_mode_auto_normal"
-                android:clickable="true"
-                android:focusable="true"/>
+                android:textColor="@color/text_on_accent"
+                android:backgroundTint="@color/accent"
+                style="@style/Widget.MaterialComponents.Button"/>
 
         </LinearLayout>
 
