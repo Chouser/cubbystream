@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.BaseballStream" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.CubbyStream" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
         <item name="colorPrimaryVariant">@color/header_bg</item>
         <item name="colorOnPrimary">@color/text_on_accent</item>

@@ -1,4 +1,4 @@
-# BaseballStream — Android App
+# CubbyStream — Android App
 
 A background-capable baseball audio streaming app with automatic commercial detection.
 
@@ -8,7 +8,7 @@ A background-capable baseball audio streaming app with automatic commercial dete
 
 **Requirements:** Android Studio Hedgehog (2023.1) or later, JDK 11+.
 
-1. Open the `BaseballStream` folder in Android Studio.
+1. Open the `cubbystream` folder in Android Studio.
 2. Let Gradle sync complete.
 3. Connect a device (Android 8.0 / API 26+) or start an emulator.
 4. Run → **Run 'app'**.
