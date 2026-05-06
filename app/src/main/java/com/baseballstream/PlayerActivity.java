@@ -227,10 +227,11 @@ public class PlayerActivity extends AppCompatActivity
                     break;
             }
         }
+        updateModeButtonActive();
         updateVolumeModeLabel();
     }
 
-    private void updateModeButtonBorders() {
+    private void updateModeButtonActive() {
         int inactive = 0xFF555555;
         btnModeGame.setBackgroundTintList(ColorStateList.valueOf(
                 volumeMode == VolumeMode.GAME ? 0xFF2E7D32 : inactive));

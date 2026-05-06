@@ -160,21 +160,6 @@ public class PlaybackService extends LifecycleService {
         resume();
     }
 
-    /**
-     * Returns the live offset in milliseconds, or -1 if not a live stream
-     * or offset not yet known. Updates correctly while paused.
-     */
-    public long getLiveOffsetMs() {
-        if (player == null) return -1L;
-        if (!player.isCurrentMediaItemLive()) return -1L;
-        long offset = player.getCurrentLiveOffset();
-        return offset == androidx.media3.common.C.TIME_UNSET ? -1L : offset;
-    }
-
-    public boolean isLiveStream() {
-        return player != null && player.isCurrentMediaItemLive();
-    }
-
     public void setVolume(float volume) {
         if (player != null) player.setVolume(volume);
         isCommercialVolume = (volume < NORMAL_VOLUME);
