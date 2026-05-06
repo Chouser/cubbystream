@@ -25,21 +25,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CubbyStream">
 
-        <!-- Main screen: stream list -->
+        <!-- Single team screen: stream picker + player -->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Player screen -->
-        <activity
-            android:name=".PlayerActivity"
-            android:exported="false"
-            android:launchMode="singleTop" />
 
         <!-- Background playback service -->
         <service

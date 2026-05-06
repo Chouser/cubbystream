@@ -5,68 +5,280 @@
     android:orientation="vertical"
     android:background="@color/bg_dark">
 
-    <!-- Header bar -->
+    <!-- ===================================================================== -->
+    <!-- TOP BAR: stream spinner + Stop button                                  -->
+    <!-- ===================================================================== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:background="@color/header_bg"
-        android:paddingStart="16dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
         android:gravity="center_vertical"
         android:elevation="4dp">
 
-        <TextView
+        <Spinner
+            android:id="@+id/spinner_stream"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="⚾  Baseball Streams"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary" />
+            android:layout_marginEnd="8dp" />
 
         <Button
-            android:id="@+id/btn_reload"
+            android:id="@+id/btn_stop"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="↻ Reload"
+            android:layout_height="48dp"
+            android:text="■ Stop"
             android:textSize="14sp"
-            android:backgroundTint="@color/accent"
+            android:enabled="false"
+            android:backgroundTint="@color/btn_stop"
             android:textColor="@color/text_on_accent"
             style="@style/Widget.MaterialComponents.Button" />
 
     </LinearLayout>
 
-    <!-- Loading indicator -->
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="48dp"
-        android:visibility="gone"
-        android:indeterminateTint="@color/accent" />
-
-    <!-- Error / empty state -->
+    <!-- ===================================================================== -->
+    <!-- STATUS / ERROR TEXT (visible only when needed)                         -->
+    <!-- ===================================================================== -->
     <TextView
         android:id="@+id/text_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="32dp"
+        android:padding="16dp"
         android:gravity="center"
         android:textColor="@color/text_secondary"
-        android:textSize="15sp"
+        android:textSize="13sp"
         android:visibility="gone" />
 
-    <!-- Stream list -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_streams"
+    <!-- ===================================================================== -->
+    <!-- INFO PANEL: title + subtitle + energy row (visible when stream active) -->
+    <!-- ===================================================================== -->
+    <LinearLayout
+        android:id="@+id/layout_info_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/header_bg"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:layout_marginTop="1dp"
+        android:elevation="2dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/text_player_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:layout_marginBottom="2dp"/>
+
+        <TextView
+            android:id="@+id/text_player_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Energy row: Level | Mode | Threshold -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/text_energy_level"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Level: —"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/text_secondary"/>
+
+            <TextView
+                android:id="@+id/text_mode_indicator"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Auto: Game"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/text_secondary"
+                android:gravity="center"/>
+
+            <TextView
+                android:id="@+id/text_threshold"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Thr: —"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/text_secondary"
+                android:gravity="end"/>
+
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progress_energy"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="10dp"
+            android:max="100"
+            android:progress="0"/>
+
+    </LinearLayout>
+
+    <!-- ===================================================================== -->
+    <!-- MIDDLE spacer                                                          -->
+    <!-- ===================================================================== -->
+    <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingBottom="16dp" />
+        android:layout_weight="1"/>
+
+    <!-- ===================================================================== -->
+    <!-- BOTTOM BAR (identical layout to original activity_player.xml)         -->
+    <!-- ===================================================================== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/bottom_bar_bg"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="20dp"
+        android:elevation="4dp">
+
+        <!-- Skip to Live row -->
+        <LinearLayout
+            android:id="@+id/layout_seek_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="10dp"
+            android:gravity="center"
+            android:visibility="visible">
+
+            <Button
+                android:id="@+id/btn_skip_to_live"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="▶▶ Live"
+                android:textSize="16sp"
+                android:backgroundTint="@color/btn_live"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+        </LinearLayout>
+
+        <!-- Pause | Play -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/btn_pause"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="⏸  Pause"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:enabled="false"
+                android:backgroundTint="@color/btn_pause"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+            <Button
+                android:id="@+id/btn_play"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="▶  Play"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:backgroundTint="@color/btn_resume"
+                android:textColor="@color/text_on_accent"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+        </LinearLayout>
+
+        <!-- Volume mode label -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="VOLUME MODE"
+            android:textSize="10sp"
+            android:textColor="@color/text_secondary"
+            android:letterSpacing="0.15"
+            android:gravity="center"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- Game | Ads | Auto -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_mode_game"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="5dp"
+                android:text="🔊 Game"
+                android:textSize="13sp"
+                android:textColor="@color/text_on_accent"
+                android:backgroundTint="@color/btn_inactive"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+            <Button
+                android:id="@+id/btn_mode_ads"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp"
+                android:layout_marginEnd="5dp"
+                android:text="🔇 Ads"
+                android:textSize="13sp"
+                android:textColor="@color/text_on_accent"
+                android:backgroundTint="@color/btn_inactive"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+            <Button
+                android:id="@+id/btn_mode_auto"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp"
+                android:text="🤖 Auto"
+                android:textSize="13sp"
+                android:textColor="@color/text_on_accent"
+                android:backgroundTint="@color/accent"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

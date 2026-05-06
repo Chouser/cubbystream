@@ -23,7 +23,7 @@ docker run -it --rm \
   bash -c "cd /root/build && ./gradlew assembleDebug"
 ```
 
-### Building release verion
+### Building release version
 
 Use `./gradlew assembleRelease`
 
@@ -83,7 +83,7 @@ Your server must return `Content-Type: application/json` with this structure:
 **Fields:**
 | Field | Required | Notes |
 |-------|----------|-------|
-| `title` | Yes | Shown in list and player |
+| `title` | Yes | Shown in spinner and info panel |
 | `subtitle` | No | Secondary info (broadcaster, time) |
 | `url` | Yes | The stream URL |
 | `type` | No | `hls`, `mp3`, `aac`, `ogg` — omit and ExoPlayer auto-detects |
@@ -99,10 +99,9 @@ Your server must return `Content-Type: application/json` with this structure:
 ## App Architecture
 
 ```
-MainActivity          — Fetches JSON, shows stream list, Reload button
-  └─ PlayerActivity   — Player UI (Pause/Resume/Stop/Skip-to-Live/Volume)
-       ├─ PlaybackService (Foreground Service) — owns ExoPlayer, survives app switching
-       └─ CrowdNoiseDetector — FFT analysis thread, fires commercial/game events
+MainActivity  — Single screen: stream picker, player controls, volume mode
+  ├─ PlaybackService (Foreground Service) — owns ExoPlayer, survives app switching
+  └─ CrowdNoiseDetector — FFT audio processor, fires commercial/game events
 ```
 
 **Background playback:** `PlaybackService` is a foreground service (`mediaPlayback` type)
@@ -116,7 +115,7 @@ with a persistent notification. Android will not kill it during normal operation
 ### How it works
 
 Every ~100ms the detector:
-1. Reads a 2048-sample PCM buffer from the microphone (22050 Hz)
+1. Taps the decoded PCM stream inside ExoPlayer via the `AudioProcessor` interface
 2. Applies a Hann window to reduce spectral leakage
 3. Runs a Cooley-Tukey FFT (in-place, no external library)
 4. Measures average power in the **120 Hz – 1800 Hz** band (where crowd noise lives)
@@ -128,10 +127,10 @@ Every ~100ms the detector:
 
 In `CrowdNoiseDetector.java`:
 ```java
-public float threshold = 0.012f;
+public float threshold = 200f;
 ```
-- **Raise it** (e.g., `0.020f`) if commercials are being falsely flagged as game play.
-- **Lower it** (e.g., `0.008f`) if game play is being falsely flagged as commercial.
+- **Raise it** if commercials are being falsely flagged as game play.
+- **Lower it** if game play is being falsely flagged as commercial.
 
 You can also adjust trigger sensitivity:
 ```java
@@ -140,33 +139,29 @@ private static final int TRIGGER_FRAMES = 25; // ~2.5 seconds before switching
 
 ### Manual override
 
-The **🔊 Game** and **🔇 Commercial** buttons immediately override the auto-detector.
-After pressing either, auto-detection pauses for 8 seconds (grace period) then resumes.
-
-### Microphone note
-
-Android does not provide a public API to tap the speaker output directly.
-The detector listens through the microphone, which works well when:
-- Playing through the phone speaker
-- Playing through a wired headset (mic picks up the earpiece)
-- Bluetooth headsets (less reliable — mic and speaker are on different paths)
-
-For a future enhancement, ExoPlayer's `AudioProcessor` interface can be used to
-intercept the PCM data before it reaches the DAC, giving perfect signal quality
-regardless of output device. The FFT logic in `CrowdNoiseDetector` is unchanged.
+The **🔊 Game** and **🔇 Ads** buttons immediately override the auto-detector and stay
+in effect until you tap **🤖 Auto** to resume automatic detection.
 
 ---
 
-## Player Controls
+## UI Layout
 
-| Control | Location | Purpose |
-|---------|----------|---------|
-| **⏸ PAUSE** | Top of screen | Pause playback |
-| **▶ RESUME** | Bottom of screen | Resume (far from Pause to prevent accidental toggle) |
-| **⏭ Live** | Bottom row | Jump to live edge (HLS streams) |
-| **■ Stop** | Bottom row | Close connection and exit player |
-| **🔊 Game** | Middle | Force full volume (100%) |
-| **🔇 Commercial** | Middle | Force reduced volume (20%) |
+The single `MainActivity` screen has three zones:
+
+**Top bar** — A drop-down spinner showing all streams from the JSON feed (first item
+selected by default) and a **■ Stop** button. Stop is disabled unless a stream is
+playing or paused. Changing the spinner selection while a stream is active stops it.
+
+**Info panel** (shown only when a stream has been started) — Title, subtitle, and a
+row of three labels: `Level: N.N` | mode indicator | `Thr: N.N`. Below them a
+progress bar showing energy relative to threshold. The mode indicator reads one of:
+`Auto: Game`, `Auto: Ads`, `Manual: Game`, or `Manual: Ads`.
+
+**Bottom bar** — identical layout to the original player screen:
+- **▶▶ Live** — jump to the live edge (HLS streams)
+- **⏸ Pause** — pause; disabled when stopped or already paused
+- **▶ Play** — resume if paused, or start the selected stream from the live edge if stopped; disabled when already playing
+- **🔊 Game / 🔇 Ads / 🤖 Auto** — volume mode buttons
 
 ---
 
@@ -180,7 +175,6 @@ regardless of output device. The FFT logic in `CrowdNoiseDetector` is unchanged.
 | `FOREGROUND_SERVICE` | Background audio service |
 | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Classify service type (API 34+) |
 | `POST_NOTIFICATIONS` | Show playback notification (Android 13+) |
-| `RECORD_AUDIO` | FFT commercial detection (user prompted, gracefully degraded if denied) |
 
 ---
 
@@ -188,7 +182,7 @@ regardless of output device. The FFT logic in `CrowdNoiseDetector` is unchanged.
 
 **Commercial volume level** — in `PlaybackService.java`:
 ```java
-public static final float REDUCED_VOLUME = 0.20f; // 20%
+public static final float REDUCED_VOLUME = 0.10f; // 10%
 ```
 
 **Feed URL** — in `FeedFetcher.java`:

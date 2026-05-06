@@ -173,6 +173,11 @@ public class PlaybackService extends LifecycleService {
     public boolean isPlaying()         { return player != null && player.isPlaying(); }
     public boolean isCommercialVolume() { return isCommercialVolume; }
 
+    /** True when a media item is loaded (playing or paused), false when fully stopped. */
+    public boolean hasActiveStream() {
+        return player != null && player.getMediaItemCount() > 0;
+    }
+
     public void setPlaybackListener(PlaybackListener l) { this.playbackListener = l; }
 
     public void setCrowdNoiseListener(CrowdNoiseDetector.Listener l) {
@@ -211,7 +216,7 @@ public class PlaybackService extends LifecycleService {
     }
 
     private PendingIntent openPlayerIntent() {
-        Intent i = new Intent(this, PlayerActivity.class);
+        Intent i = new Intent(this, MainActivity.class);
         i.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         return PendingIntent.getActivity(this, 0, i,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
