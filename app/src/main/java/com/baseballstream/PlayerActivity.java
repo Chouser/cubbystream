@@ -43,22 +43,10 @@ public class PlayerActivity extends AppCompatActivity
     private final DetectionLogger logger = new DetectionLogger();
     private int logFrameCount = 0;
 
-    // ---- Live offset polling ----
-    // Runs every second to update the live offset display independently
-    // of the energy update rate. Continues correctly while paused.
-    private final Handler offsetHandler = new Handler(Looper.getMainLooper());
-    private final Runnable offsetUpdater = new Runnable() {
-        @Override public void run() {
-            updateLiveOffsetDisplay();
-            offsetHandler.postDelayed(this, 1000);
-        }
-    };
-
     // ---- Views ----
     private TextView    textStreamTitle;
     private TextView    textStreamSubtitle;
     private TextView    textPlaybackStatus;
-    private TextView    textLiveOffset;
     private TextView    textVolumeMode;
     private TextView    textEnergyLevel;
     private ProgressBar progressEnergy;
@@ -87,7 +75,6 @@ public class PlayerActivity extends AppCompatActivity
         @Override
         public void onPositionDiscontinuity(
                 Player.PositionInfo oldPos, Player.PositionInfo newPos, int reason) {
-            runOnUiThread(() -> updateLiveOffsetDisplay());
         }
     };
 
@@ -104,7 +91,6 @@ public class PlayerActivity extends AppCompatActivity
             updatePlaybackUi(service.isPlaying());
             applyVolumeMode(VolumeMode.AUTO);
             logger.open(PlayerActivity.this, streamTitle != null ? streamTitle : "stream");
-            offsetHandler.post(offsetUpdater);
         }
 
         @Override
@@ -148,14 +134,12 @@ public class PlayerActivity extends AppCompatActivity
             service.setPlaybackListener(this);
             service.setCrowdNoiseListener(this);
             updatePlaybackUi(service.isPlaying());
-            offsetHandler.post(offsetUpdater);
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        offsetHandler.removeCallbacks(offsetUpdater);
     }
 
     @Override
@@ -165,7 +149,6 @@ public class PlayerActivity extends AppCompatActivity
 
     @Override
     protected void onDestroy() {
-        offsetHandler.removeCallbacks(offsetUpdater);
         logger.close();
         if (bound) {
             if (service != null && service.getPlayer() != null)
@@ -184,7 +167,6 @@ public class PlayerActivity extends AppCompatActivity
         textStreamTitle    = findViewById(R.id.text_player_title);
         textStreamSubtitle = findViewById(R.id.text_player_subtitle);
         textPlaybackStatus = findViewById(R.id.text_playback_status);
-        textLiveOffset     = findViewById(R.id.text_live_offset);
         textVolumeMode     = findViewById(R.id.text_volume_mode);
         textEnergyLevel    = findViewById(R.id.text_energy_level);
         progressEnergy     = findViewById(R.id.progress_energy);
@@ -214,7 +196,6 @@ public class PlayerActivity extends AppCompatActivity
         });
         btnStop.setOnClickListener(v -> {
             logger.close();
-            offsetHandler.removeCallbacks(offsetUpdater);
             if (bound && service != null) service.stopStream();
             finish();
         });
@@ -227,36 +208,6 @@ public class PlayerActivity extends AppCompatActivity
     private void displayStreamInfo() {
         textStreamTitle.setText(streamTitle != null ? streamTitle : "");
         textStreamSubtitle.setText(streamSubtitle != null ? streamSubtitle : "");
-    }
-
-    // =========================================================================
-    // Live offset display
-    // =========================================================================
-
-    private void updateLiveOffsetDisplay() {
-        if (service == null) { textLiveOffset.setText(""); return; }
-
-        if (!service.isLiveStream()) {
-            textLiveOffset.setText("");
-            return;
-        }
-
-        long offsetMs = service.getLiveOffsetMs();
-        if (offsetMs < 0) {
-            textLiveOffset.setText("live offset: —");
-            return;
-        }
-
-        long totalSecs = offsetMs / 1000;
-        if (totalSecs < 5) {
-            textLiveOffset.setText("● Live");
-        } else if (totalSecs < 60) {
-            textLiveOffset.setText(totalSecs + "s behind");
-        } else {
-            long mins = totalSecs / 60;
-            long secs = totalSecs % 60;
-            textLiveOffset.setText(String.format("%dm %02ds behind", mins, secs));
-        }
     }
 
     // =========================================================================

@@ -6,7 +6,7 @@
     android:background="@color/bg_dark">
 
     <!-- ===================================================================== -->
-    <!-- TOP BAR: stream info, status, live offset, energy meter, Stop        -->
+    <!-- TOP BAR: stream info, status, energy meter, Stop        -->
     <!-- ===================================================================== -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -38,7 +38,7 @@
             android:textColor="@color/text_secondary"
             android:layout_marginBottom="10dp"/>
 
-        <!-- Playback status left, live offset right -->
+        <!-- Playback status left -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -55,14 +55,6 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"/>
-
-            <TextView
-                android:id="@+id/text_live_offset"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:fontFamily="monospace"
-                android:textColor="@color/text_secondary"/>
 
         </LinearLayout>
 
