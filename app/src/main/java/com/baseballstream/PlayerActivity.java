@@ -172,7 +172,6 @@ public class PlayerActivity extends AppCompatActivity
         progressEnergy     = findViewById(R.id.progress_energy);
         btnPause           = findViewById(R.id.btn_pause);
         btnResume          = findViewById(R.id.btn_resume);
-        btnRewind          = findViewById(R.id.btn_rewind);
         btnSkipToLive      = findViewById(R.id.btn_skip_to_live);
         btnStop            = findViewById(R.id.btn_stop);
         layoutSeekRow      = findViewById(R.id.layout_seek_row);
@@ -187,9 +186,6 @@ public class PlayerActivity extends AppCompatActivity
         });
         btnResume.setOnClickListener(v -> {
             if (bound && service != null) service.resume();
-        });
-        btnRewind.setOnClickListener(v -> {
-            if (bound && service != null) service.rewindFifteenSeconds();
         });
         btnSkipToLive.setOnClickListener(v -> {
             if (bound && service != null) service.skipToLive();

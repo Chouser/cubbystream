@@ -160,13 +160,6 @@ public class PlaybackService extends LifecycleService {
         resume();
     }
 
-    /** Seek back 15 seconds. Clamped to start of DVR window by ExoPlayer. */
-    public void rewindFifteenSeconds() {
-        if (player == null) return;
-        long target = player.getCurrentPosition() - 15_000L;
-        player.seekTo(Math.max(target, 0));
-    }
-
     /**
      * Returns the live offset in milliseconds, or -1 if not a live stream
      * or offset not yet known. Updates correctly while paused.
