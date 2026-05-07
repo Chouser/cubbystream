@@ -159,15 +159,14 @@ public class MlbApiClient {
         pollFuture = executor.scheduleAtFixedRate(
                 this::fetchLiveFeed, pollIntervalSec, pollIntervalSec, TimeUnit.SECONDS);
     }
-
     private void fetchLiveFeed() {
         if (!running || gamePk < 0) return;
         String url = BASE + "/api/v1.1/game/" + gamePk + "/feed/live"
-                + "?fields=gameData,teams,teamName,abbreviation,fileCode,"
-                + "liveData,linescore,inningHalf,currentInning,outs,balls,strikes,"
-                + "offense,defense,pitcher,batter,first,second,third,runners,"
-                + "plays,currentPlay,matchup,result,count,"
-                + "gameData,status,abstractGameState,datetime,officialDate";
+                + "?fields=gameData,teams,teamName,abbreviation,liveData,"
+                + "linescore,inningHalf,currentInning,outs,balls,strikes,"
+                + "pitcher,batter,fullName,plays,currentPlay,home,away,runs,"
+                + "matchup,status,abstractGameState,"
+                + "datetime,officialDate,postOnFirst,postOnSecond,postOnThird";
         try {
             String body = get(url);
             if (body == null || !running) return;
@@ -222,20 +221,18 @@ public class MlbApiClient {
                     ? lsTeams.getJSONObject("home").optInt("runs", 0) : 0;
         }
 
-        // Offense (baserunners) and defense (pitcher)
-        JSONObject offense  = linescore.optJSONObject("offense");
-        JSONObject defense  = linescore.optJSONObject("defense");
+        JSONObject matchup = getDeepObject(liveData, "plays", "currentPlay", "matchup");
 
-        boolean onFirst  = offense != null && offense.has("first");
-        boolean onSecond = offense != null && offense.has("second");
-        boolean onThird  = offense != null && offense.has("third");
+        String batterName  = getDeepString(matchup, "batter", "fullName");
+        String pitcherName = getDeepString(matchup, "pitcher", "fullName");
 
-        String nameFirst  = onFirst  ? playerName(offense.optJSONObject("first"))  : null;
-        String nameSecond = onSecond ? playerName(offense.optJSONObject("second")) : null;
-        String nameThird  = onThird  ? playerName(offense.optJSONObject("third"))  : null;
+        String nameFirst  = getDeepString(matchup, "postOnFirst", "fullName");
+        String nameSecond = getDeepString(matchup, "postOnSecond", "fullName");
+        String nameThird  = getDeepString(matchup, "postOnThird", "fullName");
 
-        String batterName  = offense  != null ? playerName(offense.optJSONObject("batter"))  : "";
-        String pitcherName = defense  != null ? playerName(defense.optJSONObject("pitcher")) : "";
+        boolean onFirst  = nameFirst != null;
+        boolean onSecond = nameSecond != null;
+        boolean onThird  = nameThird != null;
 
         return new GameState(
                 System.currentTimeMillis(),
@@ -251,19 +248,33 @@ public class MlbApiClient {
                 abstractState);
     }
 
-    private String playerName(JSONObject obj) {
-        if (obj == null) return "";
-        // Prefer lastName for brevity, fall back to fullName
-        String last = obj.optString("lastName", "");
-        if (!last.isEmpty()) return last;
-        String full = obj.optString("fullName", "");
-        if (!full.isEmpty()) return full;
-        return obj.optString("nameFirstLast", "");
-    }
-
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    private JSONObject getDeepObjectButOne(JSONObject json, String[] keys) {
+        JSONObject current = json;
+        for (int i = 0; i < keys.length - 1; i++) {
+            if (current == null) return null;
+            current = current.optJSONObject(keys[i]);
+        }
+        return current;
+    }
+
+    private JSONObject getDeepObject(JSONObject json, String... keys) {
+        JSONObject parent = getDeepObjectButOne(json, keys);
+        return (parent != null) ? parent.optJSONObject(keys[keys.length - 1]) : null;
+    }
+
+    private String getDeepString(JSONObject json, String... keys) {
+        JSONObject parent = getDeepObjectButOne(json, keys);
+        return (parent != null) ? parent.optString(keys[keys.length - 1], null) : null;
+    }
+
+    private int getDeepInt(JSONObject json, String... keys) {
+        JSONObject parent = getDeepObjectButOne(json, keys);
+        return (parent != null) ? parent.optInt(keys[keys.length - 1], 0) : 0;
+    }
 
     /** Synchronous HTTP GET — must be called off the main thread. */
     private String get(String url) throws IOException {

@@ -483,12 +483,6 @@ public class MainActivity extends AppCompatActivity
         showGamedayPlaceholder(reason);
     }
 
-    @Override
-    public void onError(String message) {
-        // Non-fatal; just log — don't disrupt the UI
-        android.util.Log.w("MainActivity", "Gameday error: " + message);
-    }
-
     private static String repeat(String s, int n) {
         if (n <= 0) return "";
         StringBuilder sb = new StringBuilder(n);
@@ -578,7 +572,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onError(String message) {
         runOnUiThread(() ->
-                Toast.makeText(this, "Playback error: " + message, Toast.LENGTH_LONG).show());
+                Toast.makeText(this, "Error: " + message, Toast.LENGTH_LONG).show());
     }
 
     // =========================================================================
