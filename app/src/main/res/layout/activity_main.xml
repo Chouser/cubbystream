@@ -84,6 +84,25 @@
         android:elevation="2dp"
         android:visibility="gone">
 
+        <TextView
+            android:id="@+id/text_player_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:layout_marginBottom="2dp"/>
+
+        <TextView
+            android:id="@+id/text_player_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="10dp"/>
+
         <!-- Energy row: Level | Mode | Threshold -->
         <LinearLayout
             android:layout_width="match_parent"

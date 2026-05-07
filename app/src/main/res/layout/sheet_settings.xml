@@ -251,6 +251,134 @@
         </LinearLayout>
 
         <!-- ================================================================= -->
+        <!-- Poll interval                                                      -->
+        <!-- ================================================================= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Gameday Poll Interval"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:textAllCaps="true"
+                android:letterSpacing="0.1"/>
+
+            <TextView
+                android:id="@+id/text_poll_interval_val"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:minWidth="44dp"
+                android:gravity="end"/>
+
+            <Button
+                android:id="@+id/btn_reset_poll_interval"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:text="↺"
+                android:textSize="16sp"
+                android:padding="0dp"
+                android:backgroundTint="@color/btn_inactive"
+                android:textColor="@color/text_primary"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/seek_poll_interval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="1s"
+                android:textSize="11sp" android:textColor="@color/text_secondary"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="30s"
+                android:textSize="11sp" android:textColor="@color/text_secondary"
+                android:gravity="end"/>
+        </LinearLayout>
+
+        <!-- ================================================================= -->
+        <!-- API delay                                                          -->
+        <!-- ================================================================= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Stream Delay (API offset)"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:textAllCaps="true"
+                android:letterSpacing="0.1"/>
+
+            <TextView
+                android:id="@+id/text_api_delay_val"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:minWidth="44dp"
+                android:gravity="end"/>
+
+            <Button
+                android:id="@+id/btn_reset_api_delay"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:text="↺"
+                android:textSize="16sp"
+                android:padding="0dp"
+                android:backgroundTint="@color/btn_inactive"
+                android:textColor="@color/text_primary"
+                style="@style/Widget.MaterialComponents.Button"/>
+
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/seek_api_delay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="0s"
+                android:textSize="11sp" android:textColor="@color/text_secondary"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="120s"
+                android:textSize="11sp" android:textColor="@color/text_secondary"
+                android:gravity="end"/>
+        </LinearLayout>
+
+        <!-- ================================================================= -->
         <!-- Logs                                                               -->
         <!-- ================================================================= -->
         <TextView

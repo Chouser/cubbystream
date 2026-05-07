@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -14,6 +15,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
@@ -31,7 +33,8 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity
         implements PlaybackService.PlaybackListener,
                    CrowdNoiseDetector.Listener,
-                   SettingsSheet.Listener {
+                   SettingsSheet.Listener,
+                   GamedayController.Listener {
 
     private static final int REQ_NOTIFICATION = 101;
 
@@ -45,12 +48,18 @@ public class MainActivity extends AppCompatActivity
     private final DetectionLogger logger = new DetectionLogger();
     private int logFrameCount = 0;
 
-    // ---- Views ----
+    // ---- Gameday ----
+    private final GamedayController gameday = new GamedayController();
+    private String currentGamedayUrl = null;  // built from most recent GameState
+
+    // ---- Audio views ----
     private Spinner      spinnerStream;
     private Button       btnStop;
     private Button       btnPlay;
     private TextView     textStatus;
     private LinearLayout layoutInfoPanel;
+    private TextView     textPlayerTitle;
+    private TextView     textPlayerSubtitle;
     private TextView     textEnergyLevel;
     private TextView     textModeIndicator;
     private TextView     textThreshold;
@@ -60,11 +69,28 @@ public class MainActivity extends AppCompatActivity
     private Button       btnModeGame;
     private Button       btnModeAds;
     private Button       btnModeAuto;
+    private ImageButton  btnSettings;
+
+    // ---- Gameday views ----
+    private LinearLayout layoutScoreboard;
+    private TextView     textScoreLine;
+    private TextView     textCountOuts;
+    private ImageView    imgAwayLogo;
+    private ImageView    imgHomeLogo;
+    private ImageView    base1;
+    private ImageView    base2;
+    private ImageView    base3;
+    private TextView     textBase1;
+    private TextView     textBase2;
+    private TextView     textBase3;
+    private TextView     textPitcherName;
+    private TextView     textBatterName;
+    private TextView     textNoGame;      // shown when no game / no teamId
+    private TextView     btnGamedayData;
 
     // ---- Feed / spinner state ----
     private List<StreamItem> feedItems = new ArrayList<>();
     private int selectedPosition = 0;
-    // Suppress the initial synthetic onItemSelected that fires when the adapter is set
     private boolean spinnerReady = false;
 
     // ---- Service ----
@@ -75,8 +101,8 @@ public class MainActivity extends AppCompatActivity
     private enum PlayState { STOPPED, PLAYING, PAUSED }
     private PlayState playState = PlayState.STOPPED;
 
-    // ---- Current stream info (for info panel and logger) ----
-    private String currentTitle    = "";
+    // ---- Current stream info ----
+    private String currentTitle = "";
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -86,7 +112,6 @@ public class MainActivity extends AppCompatActivity
             service.setCrowdNoiseListener(MainActivity.this);
             bound = true;
 
-            // Sync UI to current service state — do NOT auto-play.
             if (service.isPlaying()) {
                 playState = PlayState.PLAYING;
             } else if (service.hasActiveStream()) {
@@ -97,13 +122,11 @@ public class MainActivity extends AppCompatActivity
             updatePlaybackUi();
             applyVolumeMode(VolumeMode.AUTO);
 
-            // Apply persisted settings to service
             if (prefs != null) {
                 service.setThreshold(prefs.getThreshold());
                 service.setAdsVolumePct(prefs.getAdsVolumePct());
             }
 
-            // If Play was requested before the service was ready, start now.
             if (pendingPlay) {
                 pendingPlay = false;
                 if (!feedItems.isEmpty()) doPlayStream(feedItems.get(selectedPosition));
@@ -137,11 +160,11 @@ public class MainActivity extends AppCompatActivity
 
         prefs = new AppPrefs(this);
 
-        // Bind without starting — service starts only when user hits Play.
         Intent si = new Intent(this, PlaybackService.class);
         bindService(si, connection, BIND_AUTO_CREATE);
 
         loadFeed();
+        showGamedayPlaceholder("Select a stream to load game data.");
     }
 
     @Override
@@ -169,6 +192,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onDestroy() {
         logger.close();
+        gameday.stop();
         if (bound) {
             unbindService(connection);
             bound = false;
@@ -180,14 +204,14 @@ public class MainActivity extends AppCompatActivity
     // View wiring
     // =========================================================================
 
-    private ImageButton btnSettings;
-
     private void bindViews() {
         spinnerStream      = findViewById(R.id.spinner_stream);
         btnStop            = findViewById(R.id.btn_stop);
         btnPlay            = findViewById(R.id.btn_play);
         textStatus         = findViewById(R.id.text_status);
         layoutInfoPanel    = findViewById(R.id.layout_info_panel);
+        textPlayerTitle    = findViewById(R.id.text_player_title);
+        textPlayerSubtitle = findViewById(R.id.text_player_subtitle);
         textEnergyLevel    = findViewById(R.id.text_energy_level);
         textModeIndicator  = findViewById(R.id.text_mode_indicator);
         textThreshold      = findViewById(R.id.text_threshold);
@@ -198,6 +222,27 @@ public class MainActivity extends AppCompatActivity
         btnModeAds         = findViewById(R.id.btn_mode_ads);
         btnModeAuto        = findViewById(R.id.btn_mode_auto);
         btnSettings        = findViewById(R.id.btn_settings);
+
+        layoutScoreboard   = findViewById(R.id.layout_scoreboard);
+        textScoreLine      = findViewById(R.id.text_score_line);
+        textCountOuts      = findViewById(R.id.text_count_outs);
+        imgAwayLogo        = findViewById(R.id.img_away_logo);
+        imgHomeLogo        = findViewById(R.id.img_home_logo);
+        base1              = findViewById(R.id.base1);
+        base2              = findViewById(R.id.base2);
+        base3              = findViewById(R.id.base3);
+        textBase1          = findViewById(R.id.text_base1);
+        textBase2          = findViewById(R.id.text_base2);
+        textBase3          = findViewById(R.id.text_base3);
+        textPitcherName    = findViewById(R.id.text_pitcher_name);
+        textBatterName     = findViewById(R.id.text_batter_name);
+        btnGamedayData     = findViewById(R.id.btn_gameday_data);
+
+        // textNoGame shares the scoreboard slot — we create it dynamically
+        // or we can reuse text_score_line area; simplest: use a tag on layout_scoreboard
+        // Actually use a sibling TextView we add programmatically; but to avoid
+        // touching the layout we repurpose text_score_line visibility.
+        // See showGamedayPlaceholder() / applyGameState().
     }
 
     private void setupClickListeners() {
@@ -205,30 +250,32 @@ public class MainActivity extends AppCompatActivity
 
         btnPlay.setOnClickListener(v -> {
             if (playState == PlayState.PAUSED && bound && service != null) {
-                // Resume existing paused stream
                 service.resume();
+                gameday.onStreamResumed();
             } else {
-                // Start fresh with the selected stream
                 startSelectedStream();
             }
         });
 
         btnResume.setOnClickListener(v -> {
             if (playState == PlayState.PAUSED && bound && service != null) {
-                // Resume existing paused stream
                 service.resume();
+                gameday.onStreamResumed();
             } else {
-                // Start fresh with the selected stream
                 startSelectedStream();
             }
         });
 
         btnPause.setOnClickListener(v -> {
-            if (bound && service != null) service.pause();
+            if (bound && service != null) {
+                service.pause();
+                gameday.onStreamPaused();
+            }
         });
 
         findViewById(R.id.btn_skip_to_live).setOnClickListener(v -> {
             if (bound && service != null) service.skipToLive();
+            gameday.onLive();
         });
 
         btnModeGame.setOnClickListener(v -> applyVolumeMode(VolumeMode.GAME));
@@ -241,17 +288,24 @@ public class MainActivity extends AppCompatActivity
             sheet.show(getSupportFragmentManager(), "settings");
         });
 
+        btnGamedayData.setOnClickListener(v -> {
+            if (currentGamedayUrl != null) {
+                Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(currentGamedayUrl));
+                startActivity(i);
+            } else {
+                Toast.makeText(this, "No game data available yet", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         spinnerStream.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (!spinnerReady) return; // ignore the initial synthetic callback
+                if (!spinnerReady) return;
                 if (position == selectedPosition) return;
                 selectedPosition = position;
-                // Changing the stream selection stops any current stream
                 if (playState != PlayState.STOPPED) stopStream();
             }
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
     }
 
@@ -278,7 +332,6 @@ public class MainActivity extends AppCompatActivity
                             "Updated: " + feed.getUpdated(), Toast.LENGTH_SHORT).show();
                 }
             }
-
             @Override
             public void onError(String message) {
                 showStatus("Could not load streams:\n" + message);
@@ -289,11 +342,9 @@ public class MainActivity extends AppCompatActivity
     private void populateSpinner() {
         List<String> titles = new ArrayList<>();
         for (StreamItem item : feedItems) titles.add(item.getTitle());
-
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this, R.layout.spinner_item, titles);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
         spinnerReady = false;
         spinnerStream.setAdapter(adapter);
         spinnerStream.setSelection(0, false);
@@ -310,7 +361,6 @@ public class MainActivity extends AppCompatActivity
     // Playback control
     // =========================================================================
 
-    // Set to true when Play is tapped before the service connection is established.
     private boolean pendingPlay = false;
 
     private void startSelectedStream() {
@@ -324,25 +374,126 @@ public class MainActivity extends AppCompatActivity
         ContextCompat.startForegroundService(this, si);
         if (!bound) {
             bindService(si, connection, BIND_AUTO_CREATE);
-            pendingPlay = true; // onServiceConnected will call doPlayStream
+            pendingPlay = true;
         } else {
             doPlayStream(item);
         }
     }
 
     private void doPlayStream(StreamItem item) {
-        currentTitle    = item.getTitle();
+        currentTitle = item.getTitle();
         service.playStream(item.getUrl(), item.getTitle(), item.getType());
         logger.open(this, currentTitle);
+        textPlayerTitle.setText(item.getTitle());
+        textPlayerSubtitle.setText(item.getSubtitle());
         layoutInfoPanel.setVisibility(View.VISIBLE);
+
+        // Start or restart gameday polling
+        gameday.stop();
+        currentGamedayUrl = null;
+        if (item.hasTeam()) {
+            int pollSec   = prefs != null ? prefs.getPollInterval() : AppPrefs.DEFAULT_POLL_INTERVAL;
+            long delayMs  = (prefs != null ? prefs.getApiDelay()    : AppPrefs.DEFAULT_API_DELAY) * 1000L;
+            showGamedayPlaceholder("Loading game data…");
+            gameday.start(item.getTeamId(), pollSec, delayMs, this);
+        } else {
+            showGamedayPlaceholder("No team ID in stream — gameday data unavailable.");
+        }
     }
 
     private void stopStream() {
         logger.close();
+        gameday.stop();
+        currentGamedayUrl = null;
         if (bound && service != null) service.stopStream();
         playState = PlayState.STOPPED;
         updatePlaybackUi();
         layoutInfoPanel.setVisibility(View.GONE);
+        showGamedayPlaceholder("Select a stream to load game data.");
+    }
+
+    // =========================================================================
+    // Gameday UI
+    // =========================================================================
+
+    /** Hide the scoreboard and show a placeholder message instead. */
+    private void showGamedayPlaceholder(String message) {
+        layoutScoreboard.setVisibility(View.GONE);
+        // Repurpose textScoreLine as the placeholder (it's in the same area)
+        textScoreLine.setText(message);
+        textScoreLine.setVisibility(View.VISIBLE);
+        // Reset base icons
+        base1.setImageResource(R.drawable.base_diamond_empty);
+        base2.setImageResource(R.drawable.base_diamond_empty);
+        base3.setImageResource(R.drawable.base_diamond_empty);
+        textBase1.setText("");
+        textBase2.setText("");
+        textBase3.setText("");
+        textPitcherName.setText("");
+        textBatterName.setText("");
+    }
+
+    private void showScoreboard() {
+        textScoreLine.setVisibility(View.GONE);
+        layoutScoreboard.setVisibility(View.VISIBLE);
+    }
+
+    // =========================================================================
+    // GamedayController.Listener
+    // =========================================================================
+
+    @Override
+    public void onGameStateApplied(GameState state) {
+        // Already on main thread
+        currentGamedayUrl = state.gamedayUrl();
+        showScoreboard();
+
+        // Score line: "NYY 3 | ▲4 | CHC 2"
+        String half = state.isTopInning ? "▲" : "▼";
+        textScoreLine.setText(String.format("%s %d  |  %s%d  |  %s %d",
+                state.awayTeamAbbrev, state.awayScore,
+                half, state.inning,
+                state.homeTeamAbbrev, state.homeScore));
+
+        // Count / outs
+        String balls   = repeat("●", state.balls)   + repeat("○", Math.max(0, 3 - state.balls));
+        String strikes = repeat("●", state.strikes) + repeat("○", Math.max(0, 2 - state.strikes));
+        String outs    = repeat("●", state.outs)    + repeat("○", Math.max(0, 2 - state.outs));
+        textCountOuts.setText(String.format("%s balls  %s strikes  |  Outs: %s", balls, strikes, outs));
+
+        // Base runners
+        base1.setImageResource(state.runnerOnFirst  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
+        base2.setImageResource(state.runnerOnSecond ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
+        base3.setImageResource(state.runnerOnThird  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
+        textBase1.setText(state.runnerNameFirst  != null ? state.runnerNameFirst  : "");
+        textBase2.setText(state.runnerNameSecond != null ? state.runnerNameSecond : "");
+        textBase3.setText(state.runnerNameThird  != null ? state.runnerNameThird  : "");
+
+        // Players
+        textPitcherName.setText(state.pitcherName != null ? state.pitcherName : "");
+        textBatterName.setText(state.batterName   != null ? state.batterName  : "");
+
+        // Logos
+        TeamLogoLoader.load(state.awayTeamId, imgAwayLogo);
+        TeamLogoLoader.load(state.homeTeamId, imgHomeLogo);
+    }
+
+    @Override
+    public void onNoGame(String reason) {
+        showGamedayPlaceholder(reason);
+    }
+
+    @Override
+    public void onError(String message) {
+        // Non-fatal; just log — don't disrupt the UI
+        android.util.Log.w("MainActivity", "Gameday error: " + message);
+    }
+
+    private static String repeat(String s, int n) {
+        if (n <= 0) return "";
+        StringBuilder sb = new StringBuilder(n);
+        for (int i = 0; i < n; i++) sb.append(s);
+        return sb.toString();
     }
 
     // =========================================================================
@@ -352,13 +503,8 @@ public class MainActivity extends AppCompatActivity
     private void updatePlaybackUi() {
         boolean playing = playState == PlayState.PLAYING;
         boolean stopped = playState == PlayState.STOPPED;
-        boolean paused  = playState == PlayState.PAUSED;
-
-        // Stop: enabled when stream exists (playing or paused)
         btnStop.setEnabled(!stopped);
-        // Pause: enabled only when playing
         btnPause.setEnabled(playing);
-        // Play: enabled when stopped or paused (i.e. not already playing)
         btnPlay.setEnabled(!playing);
         btnResume.setEnabled(!playing);
     }
@@ -403,7 +549,7 @@ public class MainActivity extends AppCompatActivity
         switch (volumeMode) {
             case GAME: label = "Manual: Game"; break;
             case ADS:  label = "Manual: Ads";  break;
-            default: // AUTO
+            default:
                 boolean inAd = service != null && service.detectorIsInCommercial();
                 label = inAd ? "Auto: Ads" : "Auto: Game";
                 break;
@@ -432,7 +578,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onError(String message) {
         runOnUiThread(() ->
-            Toast.makeText(this, "Playback error: " + message, Toast.LENGTH_LONG).show());
+                Toast.makeText(this, "Playback error: " + message, Toast.LENGTH_LONG).show());
     }
 
     // =========================================================================
@@ -476,19 +622,18 @@ public class MainActivity extends AppCompatActivity
     // SettingsSheet.Listener
     // =========================================================================
 
+    @Override public void onFeedUrlChanged(String newUrl)   { loadFeed(); }
+    @Override public void onThresholdChanged(int threshold) { if (bound && service != null) service.setThreshold(threshold); }
+    @Override public void onAdsVolumePctChanged(int pct)    { if (bound && service != null) service.setAdsVolumePct(pct); }
+
     @Override
-    public void onFeedUrlChanged(String newUrl) {
-        loadFeed();
+    public void onPollIntervalChanged(int sec) {
+        gameday.updatePollInterval(sec);
     }
 
     @Override
-    public void onThresholdChanged(int threshold) {
-        if (bound && service != null) service.setThreshold(threshold);
-    }
-
-    @Override
-    public void onAdsVolumePctChanged(int pct) {
-        if (bound && service != null) service.setAdsVolumePct(pct);
+    public void onApiDelayChanged(int sec) {
+        gameday.setBaseDelayMs(sec * 1000L);
     }
 
     // =========================================================================
