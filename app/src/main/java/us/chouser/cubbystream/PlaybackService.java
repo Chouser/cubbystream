@@ -30,7 +30,9 @@ public class PlaybackService extends LifecycleService {
     private static final int    NOTIF_ID   = 1001;
 
     public static final float NORMAL_VOLUME  = 1.0f;
-    public static final float REDUCED_VOLUME = 0.10f;
+    public static final float REDUCED_VOLUME = 0.10f; // kept for reference; runtime value in adsVolume
+
+    private float adsVolume = REDUCED_VOLUME;
 
     public static final String ACTION_PAUSE     = "us.chouser.cubbystream.PAUSE";
     public static final String ACTION_RESUME    = "us.chouser.cubbystream.RESUME";
@@ -167,7 +169,17 @@ public class PlaybackService extends LifecycleService {
 
     public void setCommercialVolume(boolean commercial) {
         isCommercialVolume = commercial;
-        setVolume(commercial ? REDUCED_VOLUME : NORMAL_VOLUME);
+        setVolume(commercial ? adsVolume : NORMAL_VOLUME);
+    }
+
+    public void setThreshold(int threshold) {
+        if (crowdNoiseDetector != null) crowdNoiseDetector.threshold = threshold;
+    }
+
+    public void setAdsVolumePct(int pct) {
+        adsVolume = pct / 100f;
+        // If currently in commercial volume, apply the new level immediately
+        if (isCommercialVolume) setVolume(adsVolume);
     }
 
     public boolean isPlaying()         { return player != null && player.isPlaying(); }

@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
@@ -29,9 +30,12 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity
         implements PlaybackService.PlaybackListener,
-                   CrowdNoiseDetector.Listener {
+                   CrowdNoiseDetector.Listener,
+                   SettingsSheet.Listener {
 
     private static final int REQ_NOTIFICATION = 101;
+
+    private AppPrefs prefs;
 
     // ---- Volume mode ----
     private enum VolumeMode { AUTO, GAME, ADS }
@@ -93,6 +97,12 @@ public class MainActivity extends AppCompatActivity
             updatePlaybackUi();
             applyVolumeMode(VolumeMode.AUTO);
 
+            // Apply persisted settings to service
+            if (prefs != null) {
+                service.setThreshold(prefs.getThreshold());
+                service.setAdsVolumePct(prefs.getAdsVolumePct());
+            }
+
             // If Play was requested before the service was ready, start now.
             if (pendingPlay) {
                 pendingPlay = false;
@@ -124,6 +134,8 @@ public class MainActivity extends AppCompatActivity
         bindViews();
         setupClickListeners();
         requestNotificationPermission();
+
+        prefs = new AppPrefs(this);
 
         // Bind without starting — service starts only when user hits Play.
         Intent si = new Intent(this, PlaybackService.class);
@@ -168,6 +180,8 @@ public class MainActivity extends AppCompatActivity
     // View wiring
     // =========================================================================
 
+    private ImageButton btnSettings;
+
     private void bindViews() {
         spinnerStream      = findViewById(R.id.spinner_stream);
         btnStop            = findViewById(R.id.btn_stop);
@@ -183,6 +197,7 @@ public class MainActivity extends AppCompatActivity
         btnModeGame        = findViewById(R.id.btn_mode_game);
         btnModeAds         = findViewById(R.id.btn_mode_ads);
         btnModeAuto        = findViewById(R.id.btn_mode_auto);
+        btnSettings        = findViewById(R.id.btn_settings);
     }
 
     private void setupClickListeners() {
@@ -220,6 +235,12 @@ public class MainActivity extends AppCompatActivity
         btnModeAds.setOnClickListener(v  -> applyVolumeMode(VolumeMode.ADS));
         btnModeAuto.setOnClickListener(v -> applyVolumeMode(VolumeMode.AUTO));
 
+        btnSettings.setOnClickListener(v -> {
+            SettingsSheet sheet = SettingsSheet.newInstance();
+            sheet.setListener(this);
+            sheet.show(getSupportFragmentManager(), "settings");
+        });
+
         spinnerStream.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -240,7 +261,8 @@ public class MainActivity extends AppCompatActivity
 
     private void loadFeed() {
         showStatus("Loading streams…");
-        new FeedFetcher().fetch(new FeedFetcher.Callback() {
+        String url = (prefs != null) ? prefs.getFeedUrl() : AppPrefs.DEFAULT_FEED_URL;
+        new FeedFetcher(url).fetch(new FeedFetcher.Callback() {
             @Override
             public void onSuccess(StreamFeed feed) {
                 textStatus.setVisibility(View.GONE);
@@ -448,6 +470,25 @@ public class MainActivity extends AppCompatActivity
             int color = energy >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
             progressEnergy.getProgressDrawable().setTint(color);
         });
+    }
+
+    // =========================================================================
+    // SettingsSheet.Listener
+    // =========================================================================
+
+    @Override
+    public void onFeedUrlChanged(String newUrl) {
+        loadFeed();
+    }
+
+    @Override
+    public void onThresholdChanged(int threshold) {
+        if (bound && service != null) service.setThreshold(threshold);
+    }
+
+    @Override
+    public void onAdsVolumePctChanged(int pct) {
+        if (bound && service != null) service.setAdsVolumePct(pct);
     }
 
     // =========================================================================

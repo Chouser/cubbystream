@@ -115,4 +115,9 @@ public class DetectionLogger {
     }
 
     public boolean isOpen() { return open; }
+
+    /** Returns the log directory File, or null if context not available. */
+    public static File getLogDir(Context context) {
+        return new File(context.getExternalFilesDir(null), "logs");
+    }
 }

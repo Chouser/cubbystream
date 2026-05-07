@@ -15,13 +15,15 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 /**
- * Fetches the stream JSON feed from the hardcoded URL on a background thread
- * and delivers results to the main thread via a callback.
+ * Fetches the stream JSON feed on a background thread and delivers results
+ * to the main thread via a callback.
+ *
+ * The URL is supplied at construction time; use the no-arg constructor to get
+ * the default URL, or pass a custom URL (e.g. from SharedPreferences).
  */
 public class FeedFetcher {
 
-    /** ---- CHANGE THIS TO YOUR ACTUAL SERVER URL ---- */
-    //public static final String FEED_URL = "http://192.168.0.135:8888/streams.json";
+    /** Default feed URL — also used as the SharedPreferences default in AppPrefs. */
     public static final String FEED_URL = "https://chouser.us/streams.json";
 
     public interface Callback {
@@ -29,15 +31,25 @@ public class FeedFetcher {
         void onError(String message);
     }
 
+    private final String url;
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    public FeedFetcher(String url) {
+        this.url = url;
+    }
+
+    /** Convenience constructor using the default URL. */
+    public FeedFetcher() {
+        this(FEED_URL);
+    }
+
     public void fetch(Callback callback) {
         executor.execute(() -> {
             Request request = new Request.Builder()
-                    .url(FEED_URL)
+                    .url(this.url)
                     .addHeader("Cache-Control", "no-cache")
                     .build();
 
