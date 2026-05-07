@@ -14,6 +14,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -72,8 +73,8 @@ public class MainActivity extends AppCompatActivity
     private ImageButton  btnSettings;
 
     // ---- Gameday views ----
-    private LinearLayout layoutScoreboard;
     private TextView     textScoreLine;
+    private FrameLayout  diamondFrame;
     private TextView     textCountOuts;
     private ImageView    imgAwayLogo;
     private ImageView    imgHomeLogo;
@@ -223,8 +224,8 @@ public class MainActivity extends AppCompatActivity
         btnModeAuto        = findViewById(R.id.btn_mode_auto);
         btnSettings        = findViewById(R.id.btn_settings);
 
-        layoutScoreboard   = findViewById(R.id.layout_scoreboard);
         textScoreLine      = findViewById(R.id.text_score_line);
+        diamondFrame       = findViewById(R.id.diamond_frame);
         textCountOuts      = findViewById(R.id.text_count_outs);
         imgAwayLogo        = findViewById(R.id.img_away_logo);
         imgHomeLogo        = findViewById(R.id.img_home_logo);
@@ -418,10 +419,9 @@ public class MainActivity extends AppCompatActivity
 
     /** Hide the scoreboard and show a placeholder message instead. */
     private void showGamedayPlaceholder(String message) {
-        layoutScoreboard.setVisibility(View.GONE);
         // Repurpose textScoreLine as the placeholder (it's in the same area)
         textScoreLine.setText(message);
-        textScoreLine.setVisibility(View.VISIBLE);
+        diamondFrame.setVisibility(View.GONE);
         // Reset base icons
         base1.setImageResource(R.drawable.base_diamond_empty);
         base2.setImageResource(R.drawable.base_diamond_empty);
@@ -433,11 +433,6 @@ public class MainActivity extends AppCompatActivity
         textBatterName.setText("");
     }
 
-    private void showScoreboard() {
-        textScoreLine.setVisibility(View.GONE);
-        layoutScoreboard.setVisibility(View.VISIBLE);
-    }
-
     // =========================================================================
     // GamedayController.Listener
     // =========================================================================
@@ -446,7 +441,7 @@ public class MainActivity extends AppCompatActivity
     public void onGameStateApplied(GameState state) {
         // Already on main thread
         currentGamedayUrl = state.gamedayUrl();
-        showScoreboard();
+        diamondFrame.setVisibility(View.VISIBLE);
 
         // Score line: "NYY 3 | ▲4 | CHC 2"
         String half = state.isTopInning ? "▲" : "▼";
@@ -456,10 +451,8 @@ public class MainActivity extends AppCompatActivity
                 state.homeTeamAbbrev, state.homeScore));
 
         // Count / outs
-        String balls   = repeat("●", state.balls)   + repeat("○", Math.max(0, 3 - state.balls));
-        String strikes = repeat("●", state.strikes) + repeat("○", Math.max(0, 2 - state.strikes));
-        String outs    = repeat("●", state.outs)    + repeat("○", Math.max(0, 2 - state.outs));
-        textCountOuts.setText(String.format("%s balls  %s strikes  |  Outs: %s", balls, strikes, outs));
+        String outs    = repeat("●", state.outs)    + repeat("○", Math.max(0, 3 - state.outs));
+        textCountOuts.setText(String.format("%d balls  %d strikes  |  %s outs", state.balls, state.strikes, outs));
 
         // Base runners
         base1.setImageResource(state.runnerOnFirst  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
