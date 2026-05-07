@@ -389,13 +389,13 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void updateModeButtonTints() {
-        int inactive = 0xFF555555;
+        int inactive = getColor(R.color.btn_inactive);
         btnModeGame.setBackgroundTintList(ColorStateList.valueOf(
-                volumeMode == VolumeMode.GAME ? 0xFF2E7D32 : inactive));
+                volumeMode == VolumeMode.GAME ? getColor(R.color.btn_game)       : inactive));
         btnModeAds.setBackgroundTintList(ColorStateList.valueOf(
-                volumeMode == VolumeMode.ADS  ? 0xFF4A148C : inactive));
+                volumeMode == VolumeMode.ADS  ? getColor(R.color.btn_commercial) : inactive));
         btnModeAuto.setBackgroundTintList(ColorStateList.valueOf(
-                volumeMode == VolumeMode.AUTO ? 0xFFD32F2F : inactive));
+                volumeMode == VolumeMode.AUTO ? getColor(R.color.btn_auto)       : inactive));
     }
 
     private void updateModeIndicatorLabel() {

@@ -10,16 +10,13 @@
     <color name="text_secondary">#FF9E9E9E</color>
     <color name="text_on_accent">#FFFFFFFF</color>
 
-    <!-- Accent — baseball red -->
-    <color name="accent">#FFD32F2F</color>
 
     <!-- Button colors -->
     <color name="btn_pause">#FFF57F17</color>      <!-- amber -->
     <color name="btn_play">#FF2E7D32</color>       <!-- green -->
-    <color name="btn_resume">#FF2E7D32</color>     <!-- green (same as play) -->
     <color name="btn_live">#FF1565C0</color>       <!-- blue -->
     <color name="btn_stop">#FFB71C1C</color>       <!-- deep red -->
-    <color name="btn_game">#FF2E7D32</color>       <!-- green (same as resume) -->
+    <color name="btn_game">#FF2E7D32</color>       <!-- green -->
     <color name="btn_commercial">#FFD32F2F</color> <!-- red -->
     <color name="btn_auto">#FF4A148C</color>       <!-- purple -->
     <color name="btn_inactive">#FF555555</color>

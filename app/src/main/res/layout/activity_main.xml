@@ -66,7 +66,7 @@
         android:visibility="gone" />
 
     <!-- ===================================================================== -->
-    <!-- INFO PANEL: energy row (visible when stream active) -->
+    <!-- INFO PANEL: title + subtitle + energy row (visible when stream active) -->
     <!-- ===================================================================== -->
     <LinearLayout
         android:id="@+id/layout_info_panel"
@@ -133,21 +133,6 @@
             android:progress="0"
             android:layout_marginBottom="6dp"/>
 
-    </LinearLayout>
-
-    <!-- ===================================================================== -->
-    <!-- Settings bar -->
-    <!-- ===================================================================== -->
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp"
-        android:gravity="center_vertical"
-        android:elevation="4dp">
-
         <ImageButton
             android:id="@+id/btn_settings"
             android:layout_width="32dp"
@@ -157,6 +142,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:tint="@color/text_secondary"
             android:contentDescription="Settings"/>
+
     </LinearLayout>
 
     <!-- ===================================================================== -->
@@ -291,7 +277,7 @@
                 android:text="🤖 Auto"
                 android:textSize="13sp"
                 android:textColor="@color/text_on_accent"
-                android:backgroundTint="@color/btn_auto"
+                android:backgroundTint="@color/btn_inactive"
                 style="@style/Widget.MaterialComponents.Button"/>
 
         </LinearLayout>
