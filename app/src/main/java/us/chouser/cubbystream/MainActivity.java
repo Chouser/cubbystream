@@ -269,7 +269,7 @@ public class MainActivity extends AppCompatActivity
         for (StreamItem item : feedItems) titles.add(item.getTitle());
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, titles);
+                this, R.layout.spinner_item, titles);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
         spinnerReady = false;
