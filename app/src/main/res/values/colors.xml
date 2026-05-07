@@ -10,6 +10,8 @@
     <color name="text_secondary">#FF9E9E9E</color>
     <color name="text_on_accent">#FFFFFFFF</color>
 
+    <!-- Accent — baseball red -->
+    <color name="accent">#FFD32F2F</color>
 
     <!-- Button colors -->
     <color name="btn_pause">#FFF57F17</color>      <!-- amber -->

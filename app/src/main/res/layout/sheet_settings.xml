@@ -92,7 +92,7 @@
         <Button
             android:id="@+id/btn_reload_feed"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="50dp"
             android:text="↻  Reload Feed"
             android:textSize="14sp"
             android:backgroundTint="@color/btn_live"
@@ -114,7 +114,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Detection Threshold"
+                android:text="Game Level Threshold"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:textAllCaps="true"
@@ -291,7 +291,9 @@
                 android:textColor="@color/text_on_accent"
                 style="@style/Widget.MaterialComponents.Button"/>
 
+            <!-- not really working, so hide it with "gone" -->
             <Button
+                android:visibility="gone"
                 android:id="@+id/btn_open_log_dir"
                 android:layout_width="0dp"
                 android:layout_height="40dp"
