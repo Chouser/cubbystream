@@ -1,4 +1,4 @@
-package com.baseballstream;
+package us.chouser.cubbystream;
 
 import android.content.Context;
 import android.os.Environment;
@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
  * directory (no special permissions needed on Android 10+).
  *
  * Pull logs off the device with:
- *   adb pull /sdcard/Android/data/com.baseballstream/files/logs/
+ *   adb pull /sdcard/Android/data/us.chouser.cubbystream/files/logs/
  *
  * CSV columns:
  *   timestamp_ms, energy, threshold, detector_state, volume_mode, stream_title

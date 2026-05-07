@@ -4,10 +4,10 @@ plugins {
 
 android {
     compileSdk 34
-    namespace 'com.baseballstream'
+    namespace 'us.chouser.cubbystream'
 
     defaultConfig {
-        applicationId "com.baseballstream"
+        applicationId "us.chouser.cubbystream"
         minSdk 26
         targetSdk 34
         versionCode 1

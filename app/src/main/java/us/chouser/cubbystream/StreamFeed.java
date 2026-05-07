@@ -1,4 +1,4 @@
-package com.baseballstream;
+package us.chouser.cubbystream;
 
 import java.util.List;
 

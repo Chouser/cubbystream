@@ -1,4 +1,4 @@
-package com.baseballstream;
+package us.chouser.cubbystream;
 
 import android.Manifest;
 import android.content.ComponentName;
@@ -44,16 +44,15 @@ public class MainActivity extends AppCompatActivity
     // ---- Views ----
     private Spinner      spinnerStream;
     private Button       btnStop;
+    private Button       btnPlay;
     private TextView     textStatus;
     private LinearLayout layoutInfoPanel;
-    private TextView     textPlayerTitle;
-    private TextView     textPlayerSubtitle;
     private TextView     textEnergyLevel;
     private TextView     textModeIndicator;
     private TextView     textThreshold;
     private ProgressBar  progressEnergy;
     private Button       btnPause;
-    private Button       btnPlay;
+    private Button       btnResume;
     private Button       btnModeGame;
     private Button       btnModeAds;
     private Button       btnModeAuto;
@@ -74,7 +73,6 @@ public class MainActivity extends AppCompatActivity
 
     // ---- Current stream info (for info panel and logger) ----
     private String currentTitle    = "";
-    private String currentSubtitle = "";
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -173,16 +171,15 @@ public class MainActivity extends AppCompatActivity
     private void bindViews() {
         spinnerStream      = findViewById(R.id.spinner_stream);
         btnStop            = findViewById(R.id.btn_stop);
+        btnPlay            = findViewById(R.id.btn_play);
         textStatus         = findViewById(R.id.text_status);
         layoutInfoPanel    = findViewById(R.id.layout_info_panel);
-        textPlayerTitle    = findViewById(R.id.text_player_title);
-        textPlayerSubtitle = findViewById(R.id.text_player_subtitle);
         textEnergyLevel    = findViewById(R.id.text_energy_level);
         textModeIndicator  = findViewById(R.id.text_mode_indicator);
         textThreshold      = findViewById(R.id.text_threshold);
         progressEnergy     = findViewById(R.id.progress_energy);
         btnPause           = findViewById(R.id.btn_pause);
-        btnPlay            = findViewById(R.id.btn_play);
+        btnResume          = findViewById(R.id.btn_resume);
         btnModeGame        = findViewById(R.id.btn_mode_game);
         btnModeAds         = findViewById(R.id.btn_mode_ads);
         btnModeAuto        = findViewById(R.id.btn_mode_auto);
@@ -192,6 +189,16 @@ public class MainActivity extends AppCompatActivity
         btnStop.setOnClickListener(v -> stopStream());
 
         btnPlay.setOnClickListener(v -> {
+            if (playState == PlayState.PAUSED && bound && service != null) {
+                // Resume existing paused stream
+                service.resume();
+            } else {
+                // Start fresh with the selected stream
+                startSelectedStream();
+            }
+        });
+
+        btnResume.setOnClickListener(v -> {
             if (playState == PlayState.PAUSED && bound && service != null) {
                 // Resume existing paused stream
                 service.resume();
@@ -303,11 +310,8 @@ public class MainActivity extends AppCompatActivity
 
     private void doPlayStream(StreamItem item) {
         currentTitle    = item.getTitle();
-        currentSubtitle = item.getSubtitle();
         service.playStream(item.getUrl(), item.getTitle(), item.getType());
         logger.open(this, currentTitle);
-        textPlayerTitle.setText(currentTitle);
-        textPlayerSubtitle.setText(currentSubtitle);
         layoutInfoPanel.setVisibility(View.VISIBLE);
     }
 
@@ -334,6 +338,7 @@ public class MainActivity extends AppCompatActivity
         btnPause.setEnabled(playing);
         // Play: enabled when stopped or paused (i.e. not already playing)
         btnPlay.setEnabled(!playing);
+        btnResume.setEnabled(!playing);
     }
 
     // =========================================================================

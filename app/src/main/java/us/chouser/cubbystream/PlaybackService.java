@@ -1,4 +1,4 @@
-package com.baseballstream;
+package us.chouser.cubbystream;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -26,16 +26,16 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink;
 public class PlaybackService extends LifecycleService {
 
     private static final String TAG      = "PlaybackService";
-    private static final String CHANNEL_ID = "baseball_stream_channel";
+    private static final String CHANNEL_ID = "cubby_stream_channel";
     private static final int    NOTIF_ID   = 1001;
 
     public static final float NORMAL_VOLUME  = 1.0f;
     public static final float REDUCED_VOLUME = 0.10f;
 
-    public static final String ACTION_PAUSE     = "com.baseballstream.PAUSE";
-    public static final String ACTION_RESUME    = "com.baseballstream.RESUME";
-    public static final String ACTION_STOP      = "com.baseballstream.STOP";
-    public static final String ACTION_SKIP_LIVE = "com.baseballstream.SKIP_LIVE";
+    public static final String ACTION_PAUSE     = "us.chouser.cubbystream.PAUSE";
+    public static final String ACTION_RESUME    = "us.chouser.cubbystream.RESUME";
+    public static final String ACTION_STOP      = "us.chouser.cubbystream.STOP";
+    public static final String ACTION_SKIP_LIVE = "us.chouser.cubbystream.SKIP_LIVE";
 
     public class LocalBinder extends Binder {
         public PlaybackService getService() { return PlaybackService.this; }

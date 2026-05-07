@@ -38,10 +38,10 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ### Version compatibility table
 
 | Component      | This project | JDK needed |
-|---------------|-------------|------------|
-| AGP            | 7.4.2       | 11+        |
-| Gradle wrapper | 7.6.4       | 11+        |
-| Source/target  | Java 11     | —          |
+|----------------|--------------|------------|
+| AGP            | 7.4.2        | 11+        |
+| Gradle wrapper | 7.6.4        | 11+        |
+| Source/target  | Java 11      | —          |
 
 To upgrade to AGP 8.x in future: switch to `mingc/android-build-box` (JDK 17), bump the classpath to `com.android.tools.build:gradle:8.3.2`, and update `gradle-wrapper.properties` to `gradle-8.9-bin.zip`.
 

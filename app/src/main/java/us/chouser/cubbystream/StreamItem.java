@@ -1,4 +1,4 @@
-package com.baseballstream;
+package us.chouser.cubbystream;
 
 /**
  * Represents a single audio stream entry from the JSON feed.
