@@ -443,11 +443,12 @@ public class MainActivity extends AppCompatActivity
         currentGamedayUrl = state.gamedayUrl();
         diamondFrame.setVisibility(View.VISIBLE);
 
-        // Score line: "NYY 3 | ▲4 | CHC 2"
-        String half = state.isTopInning ? "▲" : "▼";
-        textScoreLine.setText(String.format("%s %d  |  %s%d  |  %s %d",
+        //String half = state.isTopInning ? "▲" : "▼";
+        String topHalf = state.isTopInning ? "◤" : "";
+        String bottomHalf = state.isTopInning ? "" : "◢";
+        textScoreLine.setText(String.format("%s %d  |  %s%d%s  |  %s %d",
                 state.awayTeamAbbrev, state.awayScore,
-                half, state.inning,
+                topHalf, state.inning, bottomHalf,
                 state.homeTeamAbbrev, state.homeScore));
 
         // Count / outs
