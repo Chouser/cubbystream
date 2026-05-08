@@ -67,7 +67,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     private static final int POLL_MIN          = 1;
     private static final int POLL_MAX          = 30;
     private static final int DELAY_MIN         = 0;
-    private static final int DELAY_MAX         = 120;
+    private static final int DELAY_MAX         = 120; // see GamedayController.MAX_HISTORY_MS
 
     public static SettingsSheet newInstance() { return new SettingsSheet(); }
 

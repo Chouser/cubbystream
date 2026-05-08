@@ -50,7 +50,7 @@ public class TeamLogoLoader {
         }
 
         exec.execute(() -> {
-            String url = String.format(LOGO_URL, teamAbbr);
+            String url = String.format(LOGO_URL, teamAbbr.toLowerCase());
             try {
                 Request req = new Request.Builder().url(url).build();
                 try (Response resp = http.newCall(req).execute()) {
