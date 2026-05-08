@@ -194,7 +194,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="12dp"
-                    android:text="this is some test text"
                     android:textColor="@color/text_on_accent"
                     android:textStyle="bold" />
                 <ImageView android:id="@+id/img_home_logo" android:layout_width="24dp" android:layout_height="24dp" />

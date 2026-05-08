@@ -467,8 +467,8 @@ public class MainActivity extends AppCompatActivity
         textBatterName.setText(state.batterName   != null ? state.batterName  : "");
 
         // Logos
-        TeamLogoLoader.load(state.awayTeamId, imgAwayLogo);
-        TeamLogoLoader.load(state.homeTeamId, imgHomeLogo);
+        TeamLogoLoader.load(state.awayTeamAbbrev, imgAwayLogo);
+        TeamLogoLoader.load(state.homeTeamAbbrev, imgHomeLogo);
     }
 
     @Override

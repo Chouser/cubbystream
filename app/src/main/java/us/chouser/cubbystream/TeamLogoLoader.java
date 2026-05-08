@@ -18,17 +18,15 @@ import okhttp3.Response;
 
 /**
  * Lightweight team logo loader using OkHttp (already a dependency).
- * In-memory LRU cache keyed by teamId. No external image library needed.
- *
- * Logo URL: https://www.mlb.com/images/teams/logos/{teamId}-primary.png
+ * In-memory LRU cache keyed by team abbreviation. No external image library needed.
  */
 public class TeamLogoLoader {
 
-    private static final String LOGO_URL = "https://www.mlb.com/images/teams/logos/%d-primary.png";
+    private static final String LOGO_URL = "https://a.espncdn.com/i/teamlogos/mlb/100/%s.png";
 
-    private static final LruCache<Integer, Bitmap> cache = new LruCache<Integer, Bitmap>(20) {
+    private static final LruCache<String, Bitmap> cache = new LruCache<String, Bitmap>(20) {
         @Override
-        protected int sizeOf(Integer key, Bitmap value) { return 1; } // count by entries
+        protected int sizeOf(String key, Bitmap value) { return 1; } // count by entries
     };
 
     private static final OkHttpClient http     = new OkHttpClient();
@@ -36,24 +34,23 @@ public class TeamLogoLoader {
     private static final Handler mainHandler   = new Handler(Looper.getMainLooper());
 
     /**
-     * Loads the logo for teamId into imageView.
+     * Loads the logo for team into imageView.
      * Returns immediately; the ImageView is updated on the main thread when ready.
-     * No-ops silently if teamId <= 0 or the fetch fails.
      */
-    public static void load(int teamId, ImageView imageView) {
-        if (teamId <= 0 || imageView == null) return;
+    public static void load(String teamAbbr, ImageView imageView) {
+        if (teamAbbr == null || teamAbbr.isEmpty() || imageView == null) return;
 
         // Tag the view so we can detect recycling
-        imageView.setTag(teamId);
+        imageView.setTag(teamAbbr);
 
-        Bitmap cached = cache.get(teamId);
+        Bitmap cached = cache.get(teamAbbr);
         if (cached != null) {
             imageView.setImageBitmap(cached);
             return;
         }
 
         exec.execute(() -> {
-            String url = String.format(LOGO_URL, teamId);
+            String url = String.format(LOGO_URL, teamAbbr);
             try {
                 Request req = new Request.Builder().url(url).build();
                 try (Response resp = http.newCall(req).execute()) {
@@ -61,10 +58,10 @@ public class TeamLogoLoader {
                     InputStream is     = resp.body().byteStream();
                     Bitmap bmp         = BitmapFactory.decodeStream(is);
                     if (bmp == null) return;
-                    cache.put(teamId, bmp);
+                    cache.put(teamAbbr, bmp);
                     mainHandler.post(() -> {
                         // Only set if the view hasn't been reused for a different team
-                        if (Integer.valueOf(teamId).equals(imageView.getTag())) {
+                        if (teamAbbr.equals(imageView.getTag())) {
                             imageView.setImageBitmap(bmp);
                         }
                     });
