@@ -35,6 +35,9 @@ public class MlbApiClient {
     private static final String TAG = "MlbApiClient";
     private static final String BASE = "https://statsapi.mlb.com";
 
+    /** Slowest poll rate used for Preview/Final states (seconds). */
+    public static final int ADAPTIVE_POLL_SLOW_SEC = 30;
+
     public interface Listener {
         /** Called on the main thread each time a new GameState is fetched. */
         void onGameState(GameState state);
@@ -53,7 +56,8 @@ public class MlbApiClient {
 
     private Listener listener;
     private int teamId;
-    private int pollIntervalSec;
+    private int pollIntervalSec;     // current effective interval (may be adaptive)
+    private int userPollIntervalSec; // user-configured interval, used during "Live"
 
     private long   gamePk       = -1;
     private String awaySlug     = "";
@@ -70,9 +74,10 @@ public class MlbApiClient {
     // =========================================================================
 
     public void start(int teamId, int pollIntervalSec, Listener listener) {
-        this.teamId        = teamId;
-        this.pollIntervalSec = pollIntervalSec;
-        this.listener      = listener;
+        this.teamId             = teamId;
+        this.pollIntervalSec    = pollIntervalSec;
+        this.userPollIntervalSec = pollIntervalSec;
+        this.listener           = listener;
         this.running       = true;
         this.gamePk        = -1;
 
@@ -89,11 +94,32 @@ public class MlbApiClient {
     }
 
     public void updatePollInterval(int newIntervalSec) {
-        this.pollIntervalSec = newIntervalSec;
-        if (running && gamePk > 0) {
-            // Restart polling at new interval
-            if (pollFuture != null) pollFuture.cancel(false);
-            schedulePoll();
+        this.userPollIntervalSec = newIntervalSec;
+        // Only apply immediately if we're in Live mode (not already slowed down adaptively)
+        if (this.pollIntervalSec != ADAPTIVE_POLL_SLOW_SEC) {
+            this.pollIntervalSec = newIntervalSec;
+            if (running && gamePk > 0) {
+                if (pollFuture != null) pollFuture.cancel(false);
+                schedulePoll();
+            }
+        }
+    }
+
+    /**
+     * Adjusts the poll rate based on the abstractGameState from the latest fetch.
+     * "Live" uses the user-configured interval; "Preview" and "Final" use the slow rate.
+     * Called by GamedayController after each delivered state.
+     */
+    public void applyAdaptivePollRate(String abstractGameState) {
+        int desired = "Live".equalsIgnoreCase(abstractGameState)
+                ? userPollIntervalSec
+                : ADAPTIVE_POLL_SLOW_SEC;
+        if (desired != pollIntervalSec) {
+            pollIntervalSec = desired;
+            if (running && gamePk > 0) {
+                if (pollFuture != null) pollFuture.cancel(false);
+                schedulePoll();
+            }
         }
     }
 

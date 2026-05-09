@@ -53,6 +53,11 @@ public class MainActivity extends AppCompatActivity
     private final GamedayController gameday = new GamedayController();
     private String currentGamedayUrl = null;  // built from most recent GameState
 
+    // ---- Auto-start ----
+    // True from app start (or feed item change) until a Live state triggers play,
+    // or the user manually stops the stream.
+    private boolean autoStartArmed = false;
+
     // ---- Audio views ----
     private Spinner      spinnerStream;
     private Button       btnStop;
@@ -160,6 +165,7 @@ public class MainActivity extends AppCompatActivity
         requestNotificationPermission();
 
         prefs = new AppPrefs(this);
+        autoStartArmed = prefs.getAutoStartAudio();
 
         Intent si = new Intent(this, PlaybackService.class);
         bindService(si, connection, BIND_AUTO_CREATE);
@@ -174,15 +180,44 @@ public class MainActivity extends AppCompatActivity
         if (bound && service != null) {
             service.setPlaybackListener(this);
             service.setCrowdNoiseListener(this);
-            if (service.isPlaying()) {
-                playState = PlayState.PLAYING;
-            } else if (service.hasActiveStream()) {
-                playState = PlayState.PAUSED;
-            } else {
-                playState = PlayState.STOPPED;
-            }
-            updatePlaybackUi();
+            syncWithService();
         }
+    }
+
+    /**
+     * Reconciles local playState and gameday pause tracking with the actual
+     * service state. Safe to call any time the service is bound.
+     */
+    private void syncWithService() {
+        boolean nowPlaying = service.isPlaying();
+        boolean hasStream  = service.hasActiveStream();
+
+        PlayState previous = playState;
+
+        if (nowPlaying) {
+            playState = PlayState.PLAYING;
+        } else if (hasStream) {
+            playState = PlayState.PAUSED;
+        } else {
+            playState = PlayState.STOPPED;
+        }
+
+        // If the service transitioned paused → playing while we were away,
+        // inform gameday so it clears the pause accumulator.
+        if (previous == PlayState.PAUSED && playState == PlayState.PLAYING) {
+            gameday.onStreamResumed();
+        }
+        // If the service transitioned playing → paused while we were away,
+        // inform gameday so pause accumulation starts from now.
+        if (previous == PlayState.PLAYING && playState == PlayState.PAUSED) {
+            gameday.onStreamPaused();
+        }
+        // If no stream is active, snap gameday to live so the display stays current.
+        if (playState == PlayState.STOPPED) {
+            gameday.onLive();
+        }
+
+        updatePlaybackUi();
     }
 
     @Override
@@ -305,6 +340,7 @@ public class MainActivity extends AppCompatActivity
                 if (position == selectedPosition) return;
                 selectedPosition = position;
                 if (playState != PlayState.STOPPED) stopStream();
+                startGamedayForSelected();
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
@@ -351,6 +387,37 @@ public class MainActivity extends AppCompatActivity
         spinnerStream.setSelection(0, false);
         selectedPosition = 0;
         spinnerReady = true;
+
+        // Re-arm auto-start whenever the feed is (re)loaded
+        autoStartArmed = prefs != null && prefs.getAutoStartAudio();
+
+        // Begin polling game state for the default selection immediately
+        startGamedayForSelected();
+    }
+
+    /**
+     * Starts (or restarts) GamedayController for the currently selected feed item.
+     * Called on feed load and on spinner change — independent of audio state.
+     * When audio is not playing, offset is irrelevant so we call onLive() to
+     * keep the display snapped to the latest available state.
+     */
+    private void startGamedayForSelected() {
+        gameday.stop();
+        currentGamedayUrl = null;
+        if (feedItems.isEmpty()) return;
+        StreamItem item = feedItems.get(selectedPosition);
+        if (!item.hasTeam()) {
+            showGamedayPlaceholder("No team ID in stream — gameday data unavailable.");
+            return;
+        }
+        int pollSec  = prefs != null ? prefs.getPollInterval() : AppPrefs.DEFAULT_POLL_INTERVAL;
+        long delayMs = (prefs != null ? prefs.getApiDelay()    : AppPrefs.DEFAULT_API_DELAY) * 1000L;
+        showGamedayPlaceholder("Loading game data…");
+        gameday.start(item.getTeamId(), pollSec, delayMs, this);
+        // If audio is not playing, snap display to latest (no offset applies)
+        if (playState == PlayState.STOPPED) {
+            gameday.onLive();
+        }
     }
 
     private void showStatus(String msg) {
@@ -389,28 +456,21 @@ public class MainActivity extends AppCompatActivity
         textPlayerSubtitle.setText(item.getSubtitle());
         layoutInfoPanel.setVisibility(View.VISIBLE);
 
-        // Start or restart gameday polling
-        gameday.stop();
-        currentGamedayUrl = null;
-        if (item.hasTeam()) {
-            int pollSec   = prefs != null ? prefs.getPollInterval() : AppPrefs.DEFAULT_POLL_INTERVAL;
-            long delayMs  = (prefs != null ? prefs.getApiDelay()    : AppPrefs.DEFAULT_API_DELAY) * 1000L;
-            showGamedayPlaceholder("Loading game data…");
-            gameday.start(item.getTeamId(), pollSec, delayMs, this);
-        } else {
-            showGamedayPlaceholder("No team ID in stream — gameday data unavailable.");
-        }
+        // Gameday is already polling from startGamedayForSelected(); just reset
+        // the offset so display reflects "starting from live" for this stream session.
+        gameday.onLive();
     }
 
     private void stopStream() {
         logger.close();
-        gameday.stop();
-        currentGamedayUrl = null;
+        // Disarm auto-start: user explicitly stopped, don't re-trigger automatically
+        autoStartArmed = false;
         if (bound && service != null) service.stopStream();
         playState = PlayState.STOPPED;
         updatePlaybackUi();
         layoutInfoPanel.setVisibility(View.GONE);
-        showGamedayPlaceholder("Select a stream to load game data.");
+        // Keep gameday polling but snap to live since there's no longer an audio offset
+        gameday.onLive();
     }
 
     // =========================================================================
@@ -441,6 +501,14 @@ public class MainActivity extends AppCompatActivity
     public void onGameStateApplied(GameState state) {
         // Already on main thread
         currentGamedayUrl = state.gamedayUrl();
+
+        // Auto-start audio the first time we see a Live game, if armed
+        if (autoStartArmed && "Live".equalsIgnoreCase(state.abstractGameState)
+                && playState == PlayState.STOPPED) {
+            autoStartArmed = false;
+            startSelectedStream();
+        }
+
         diamondFrame.setVisibility(View.VISIBLE);
 
         //String half = state.isTopInning ? "▲" : "▼";
@@ -622,6 +690,16 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onApiDelayChanged(int sec) {
         gameday.setBaseDelayMs(sec * 1000L);
+    }
+
+    @Override
+    public void onAutoStartAudioChanged(boolean enabled) {
+        // Re-arm if the user just turned it on (and audio isn't already playing)
+        if (enabled && playState == PlayState.STOPPED) {
+            autoStartArmed = true;
+        } else if (!enabled) {
+            autoStartArmed = false;
+        }
     }
 
     // =========================================================================

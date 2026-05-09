@@ -12,18 +12,20 @@ public class AppPrefs {
     private static final String PREFS_NAME = "cubbystream_prefs";
 
     // Keys
-    public static final String KEY_FEED_URL        = "feed_url";
-    public static final String KEY_THRESHOLD       = "threshold";
-    public static final String KEY_ADS_VOLUME_PCT  = "ads_volume_pct";
-    public static final String KEY_POLL_INTERVAL   = "poll_interval_sec";
-    public static final String KEY_API_DELAY       = "api_delay_sec";
+    public static final String KEY_FEED_URL          = "feed_url";
+    public static final String KEY_THRESHOLD         = "threshold";
+    public static final String KEY_ADS_VOLUME_PCT    = "ads_volume_pct";
+    public static final String KEY_POLL_INTERVAL     = "poll_interval_sec";
+    public static final String KEY_API_DELAY         = "api_delay_sec";
+    public static final String KEY_AUTO_START_AUDIO  = "auto_start_audio";
 
     // Defaults
-    public static final String DEFAULT_FEED_URL      = FeedFetcher.FEED_URL;
-    public static final int    DEFAULT_THRESHOLD      = 200;
-    public static final int    DEFAULT_ADS_VOLUME_PCT = 10;
-    public static final int    DEFAULT_POLL_INTERVAL  = 3;   // seconds
-    public static final int    DEFAULT_API_DELAY      = 20;  // seconds
+    public static final String  DEFAULT_FEED_URL        = FeedFetcher.FEED_URL;
+    public static final int     DEFAULT_THRESHOLD        = 200;
+    public static final int     DEFAULT_ADS_VOLUME_PCT   = 10;
+    public static final int     DEFAULT_POLL_INTERVAL    = 3;   // seconds
+    public static final int     DEFAULT_API_DELAY        = 20;  // seconds
+    public static final boolean DEFAULT_AUTO_START_AUDIO = true;
 
     private final SharedPreferences prefs;
 
@@ -46,4 +48,7 @@ public class AppPrefs {
 
     public int  getApiDelay() { return prefs.getInt(KEY_API_DELAY, DEFAULT_API_DELAY); }
     public void setApiDelay(int sec) { prefs.edit().putInt(KEY_API_DELAY, sec).apply(); }
+
+    public boolean getAutoStartAudio() { return prefs.getBoolean(KEY_AUTO_START_AUDIO, DEFAULT_AUTO_START_AUDIO); }
+    public void    setAutoStartAudio(boolean v) { prefs.edit().putBoolean(KEY_AUTO_START_AUDIO, v).apply(); }
 }

@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,6 +35,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         void onAdsVolumePctChanged(int pct);
         void onPollIntervalChanged(int sec);
         void onApiDelayChanged(int sec);
+        void onAutoStartAudioChanged(boolean enabled);
     }
 
     private AppPrefs prefs;
@@ -56,6 +58,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     private SeekBar  seekApiDelay;
     private TextView textApiDelayVal;
     private Button   btnResetApiDelay;
+    private Switch   switchAutoStart;
 
     // Views — logs
     private TextView textLogPath;
@@ -105,6 +108,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         seekApiDelay         = v.findViewById(R.id.seek_api_delay);
         textApiDelayVal      = v.findViewById(R.id.text_api_delay_val);
         btnResetApiDelay     = v.findViewById(R.id.btn_reset_api_delay);
+        switchAutoStart      = v.findViewById(R.id.switch_auto_start);
         textLogPath          = v.findViewById(R.id.text_log_path);
         btnShareLog          = v.findViewById(R.id.btn_share_log);
         btnOpenLogDir        = v.findViewById(R.id.btn_open_log_dir);
@@ -129,6 +133,8 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         seekApiDelay.setMax(DELAY_MAX - DELAY_MIN);
         seekApiDelay.setProgress(prefs.getApiDelay() - DELAY_MIN);
         textApiDelayVal.setText(prefs.getApiDelay() + "s");
+
+        switchAutoStart.setChecked(prefs.getAutoStartAudio());
 
         File logDir = DetectionLogger.getLogDir(requireContext());
         textLogPath.setText(logDir != null ? logDir.getAbsolutePath() : "unavailable");
@@ -220,6 +226,12 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         btnShareLog.setOnClickListener(v -> shareLatestLog());
         btnOpenLogDir.setOnClickListener(v -> openLogDirectory());
         btnDeleteLogs.setOnClickListener(v -> confirmDeleteLogs());
+
+        // Auto-start
+        switchAutoStart.setOnCheckedChangeListener((btn, checked) -> {
+            prefs.setAutoStartAudio(checked);
+            if (listener != null) listener.onAutoStartAudioChanged(checked);
+        });
     }
 
     // =========================================================================

@@ -108,22 +108,25 @@ public class GamedayController {
     // Queue management
     // =========================================================================
 
-    private void pruneHistory() {
-        if (history.isEmpty()) return;
-        long limit = System.currentTimeMillis() - MAX_HISTORY_MS - (baseDelayMs + extraDelayMs);
-        while (!history.isEmpty() && history.get(0).fetchTimeMs < limit) {
-            history.remove(0);
-        }
-    }
-
     private void enqueue(GameState state) {
         // Must be called on main thread (MlbApiClient delivers on main thread)
         history.add(state);
         pruneHistory();
 
+        // Adjust poll rate based on game status
+        apiClient.applyAdaptivePollRate(state.abstractGameState);
+
         // If this is the first frame ever, show it immediately
         if (history.size() == 1) {
             applyDueFrames();
+        }
+    }
+
+    private void pruneHistory() {
+        if (history.isEmpty()) return;
+        long limit = System.currentTimeMillis() - MAX_HISTORY_MS - (baseDelayMs + extraDelayMs);
+        while (!history.isEmpty() && history.get(0).fetchTimeMs < limit) {
+            history.remove(0);
         }
     }
 
