@@ -190,10 +190,10 @@ public class MlbApiClient {
         String url = BASE + "/api/v1.1/game/" + gamePk + "/feed/live"
                 + "?fields=gameData,teams,teamName,abbreviation,liveData,"
                 + "linescore,inningHalf,currentInning,outs,balls,strikes,"
-                + "pitcher,batter,fullName,plays,currentPlay,home,away,runs,"
+                + "pitcher,batter,fullName,id,plays,currentPlay,home,away,runs,"
                 + "matchup,status,abstractGameState,"
-                + "datetime,officialDate,postOnFirst,postOnSecond,postOnThird,"
-                + "boxscore,pitching,pitchesThrown" // for pitch count
+                + "boxscore,players,stats,pitching,pitchesThrown,"
+                + "datetime,officialDate,postOnFirst,postOnSecond,postOnThird";
         try {
             String body = get(url);
             if (body == null || !running) return;
@@ -250,12 +250,34 @@ public class MlbApiClient {
 
         JSONObject matchup = getDeepObject(liveData, "plays", "currentPlay", "matchup");
 
-        String batterName  = getDeepString(matchup, "batter", "fullName");
+        String batterName  = getDeepString(matchup, "batter",  "fullName");
         String pitcherName = getDeepString(matchup, "pitcher", "fullName");
 
-        String nameFirst  = getDeepString(matchup, "postOnFirst", "fullName");
+        // Per-game pitch count: matchup.pitcher.id → boxscore players map
+        int pitcherPitchesThrown = -1;
+        JSONObject pitcherNode = matchup != null ? matchup.optJSONObject("pitcher") : null;
+        int pitcherId = pitcherNode != null ? pitcherNode.optInt("id", -1) : -1;
+        if (pitcherId > 0) {
+            String playerKey = "ID" + pitcherId;
+            JSONObject boxTeams = getDeepObject(liveData, "boxscore", "teams");
+            if (boxTeams != null) {
+                for (String side : new String[]{"away", "home"}) {
+                    JSONObject players = getDeepObject(boxTeams, side, "players");
+                    if (players != null && players.has(playerKey)) {
+                        JSONObject pitching = getDeepObject(
+                                players.getJSONObject(playerKey), "stats", "pitching");
+                        if (pitching != null) {
+                            pitcherPitchesThrown = pitching.optInt("pitchesThrown", -1);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        String nameFirst  = getDeepString(matchup, "postOnFirst",  "fullName");
         String nameSecond = getDeepString(matchup, "postOnSecond", "fullName");
-        String nameThird  = getDeepString(matchup, "postOnThird", "fullName");
+        String nameThird  = getDeepString(matchup, "postOnThird",  "fullName");
 
         boolean onFirst  = nameFirst != null;
         boolean onSecond = nameSecond != null;
@@ -269,7 +291,7 @@ public class MlbApiClient {
                 balls, strikes, outs,
                 onFirst, onSecond, onThird,
                 nameFirst, nameSecond, nameThird,
-                batterName, pitcherName,
+                batterName, pitcherName, pitcherPitchesThrown,
                 gamePk, awaySlug, homeSlug, gameDate,
                 awayTeamId, homeTeamId,
                 abstractState);

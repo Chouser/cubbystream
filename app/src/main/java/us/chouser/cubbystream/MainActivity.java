@@ -532,7 +532,14 @@ public class MainActivity extends AppCompatActivity
         textBase3.setText(state.runnerNameThird  != null ? state.runnerNameThird  : "");
 
         // Players
-        textPitcherName.setText(state.pitcherName != null ? state.pitcherName : "");
+        if (state.pitcherName != null) {
+            String pitcherLabel = state.pitcherPitchesThrown >= 0
+                    ? state.pitcherName + "\n" + state.pitcherPitchesThrown + " pitches"
+                    : state.pitcherName;
+            textPitcherName.setText(pitcherLabel);
+        } else {
+            textPitcherName.setText("");
+        }
         textBatterName.setText(state.batterName   != null ? state.batterName  : "");
 
         // Logos

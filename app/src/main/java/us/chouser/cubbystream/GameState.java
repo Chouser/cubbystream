@@ -36,6 +36,7 @@ public class GameState {
     // Players
     public final String batterName;
     public final String pitcherName;
+    public final int    pitcherPitchesThrown; // -1 = unknown
 
     // Game identity — used to build the Gameday URL
     public final long   gamePk;
@@ -56,7 +57,7 @@ public class GameState {
             int balls, int strikes, int outs,
             boolean runnerOnFirst, boolean runnerOnSecond, boolean runnerOnThird,
             String runnerNameFirst, String runnerNameSecond, String runnerNameThird,
-            String batterName, String pitcherName,
+            String batterName, String pitcherName, int pitcherPitchesThrown,
             long gamePk,
             String awayTeamSlug, String homeTeamSlug,
             String gameDate,
@@ -80,6 +81,7 @@ public class GameState {
         this.runnerNameThird = runnerNameThird;
         this.batterName = batterName;
         this.pitcherName = pitcherName;
+        this.pitcherPitchesThrown = pitcherPitchesThrown;
         this.gamePk = gamePk;
         this.awayTeamSlug = awayTeamSlug;
         this.homeTeamSlug = homeTeamSlug;
