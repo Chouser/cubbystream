@@ -192,7 +192,8 @@ public class MlbApiClient {
                 + "linescore,inningHalf,currentInning,outs,balls,strikes,"
                 + "pitcher,batter,fullName,plays,currentPlay,home,away,runs,"
                 + "matchup,status,abstractGameState,"
-                + "datetime,officialDate,postOnFirst,postOnSecond,postOnThird";
+                + "datetime,officialDate,postOnFirst,postOnSecond,postOnThird,"
+                + "boxscore,pitching,pitchesThrown" // for pitch count
         try {
             String body = get(url);
             if (body == null || !running) return;
