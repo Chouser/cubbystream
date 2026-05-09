@@ -177,8 +177,8 @@
 
             <ImageView
                 android:id="@+id/img_away_logo"
-                android:layout_width="32dp"
-                android:layout_height="32dp" />
+                android:layout_width="50dp"
+                android:layout_height="50dp" />
 
             <TextView
                 android:id="@+id/text_away_abbr"
@@ -228,8 +228,8 @@
 
             <ImageView
                 android:id="@+id/img_home_logo"
-                android:layout_width="32dp"
-                android:layout_height="32dp" />
+                android:layout_width="50dp"
+                android:layout_height="50dp" />
 
             <TextView
                 android:id="@+id/text_home_abbr"
@@ -249,7 +249,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_baseball_field"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
         android:layout_weight="1"
         android:padding="0dp" >
 
@@ -351,24 +351,46 @@
             android:gravity="center"
             android:textColor="@color/text_on_accent"
             android:textSize="12sp"
-            android:text="Ozzie Smith\npitches: 99"
+            android:text="Rizzo\npitches: 99"
+            app:layout_constraintTop_toBottomOf="@+id/img_pitcher_logo"
+            app:layout_constraintEnd_toEndOf="@+id/image_baseball_diamond"
+            app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
+            app:layout_constraintHorizontal_bias="0.5" />
+
+        <ImageView
+            android:id="@+id/img_pitcher_logo"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             app:layout_constraintBottom_toBottomOf="@+id/image_baseball_diamond"
             app:layout_constraintEnd_toEndOf="@+id/image_baseball_diamond"
             app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
             app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
-            app:layout_constraintHorizontal_bias="0.498"
-            app:layout_constraintVertical_bias="0.482" />
+            app:layout_constraintHorizontal_bias="0.5"
+            app:layout_constraintVertical_bias="0.47" />
 
         <TextView
             android:id="@+id/text_batter_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
+            android:textSize="14sp"
+            android:text="Ozzie Smith"
             android:textColor="@color/text_on_accent"
+            android:layout_marginTop="15dp"
+            app:layout_constraintTop_toBottomOf="@+id/img_batter_logo"
+            app:layout_constraintEnd_toEndOf="@+id/image_baseball_diamond"
+            app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
+            app:layout_constraintHorizontal_bias="0.5" />
+
+        <ImageView
+            android:id="@+id/img_batter_logo"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             app:layout_constraintBottom_toBottomOf="@+id/image_baseball_diamond"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.498"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintEnd_toEndOf="@+id/image_baseball_diamond"
+            app:layout_constraintHorizontal_bias="0.5"
+            app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
+            app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
+            app:layout_constraintVertical_bias="0.8" />
 
         <TextView
             android:id="@+id/btn_gameday_data"

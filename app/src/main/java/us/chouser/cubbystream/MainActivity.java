@@ -87,6 +87,8 @@ public class MainActivity extends AppCompatActivity
     private TextView     textHomeAbbr;
     private ImageView    imgAwayLogo;
     private ImageView    imgHomeLogo;
+    private ImageView    imgBatterLogo;
+    private ImageView    imgPitcherLogo;
     private ImageView    base1;
     private ImageView    base2;
     private ImageView    base3;
@@ -271,6 +273,8 @@ public class MainActivity extends AppCompatActivity
         textCountOuts      = findViewById(R.id.text_count_outs);
         imgAwayLogo        = findViewById(R.id.img_away_logo);
         imgHomeLogo        = findViewById(R.id.img_home_logo);
+        imgBatterLogo      = findViewById(R.id.img_batter_logo);
+        imgPitcherLogo     = findViewById(R.id.img_pitcher_logo);
         base1              = findViewById(R.id.base1);
         base2              = findViewById(R.id.base2);
         base3              = findViewById(R.id.base3);
@@ -551,6 +555,15 @@ public class MainActivity extends AppCompatActivity
         // Logos
         TeamLogoLoader.load(state.awayTeamAbbrev, imgAwayLogo);
         TeamLogoLoader.load(state.homeTeamAbbrev, imgHomeLogo);
+
+        if (state.isTopInning) {
+            TeamLogoLoader.load(state.awayTeamAbbrev, imgBatterLogo);
+            TeamLogoLoader.load(state.homeTeamAbbrev, imgPitcherLogo);
+        }
+        else {
+            TeamLogoLoader.load(state.awayTeamAbbrev, imgPitcherLogo);
+            TeamLogoLoader.load(state.homeTeamAbbrev, imgBatterLogo);
+        }
     }
 
     @Override
