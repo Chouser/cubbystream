@@ -19,6 +19,9 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.app.UiModeManager;
+import android.content.res.Configuration;
+import android.view.KeyEvent;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -58,6 +61,9 @@ public class MainActivity extends AppCompatActivity
     // True from app start (or feed item change) until a Live state triggers play,
     // or the user manually stops the stream.
     private boolean autoStartArmed = false;
+
+    // ---- TV / Fire TV ----
+    private boolean isTv = false;
 
     // ---- Audio views ----
     private Spinner      spinnerStream;
@@ -173,6 +179,10 @@ public class MainActivity extends AppCompatActivity
         prefs = new AppPrefs(this);
         autoStartArmed = prefs.getAutoStartAudio();
 
+        UiModeManager uiModeManager = (UiModeManager) getSystemService(UI_MODE_SERVICE);
+        isTv = uiModeManager != null &&
+               uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
+
         Intent si = new Intent(this, PlaybackService.class);
         bindService(si, connection, BIND_AUTO_CREATE);
 
@@ -224,6 +234,46 @@ public class MainActivity extends AppCompatActivity
         }
 
         updatePlaybackUi();
+
+        if (isTv) {
+            if (playState == PlayState.PLAYING) {
+                btnPause.requestFocus();
+            } else {
+                btnPlay.requestFocus();
+            }
+        }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                if (playState == PlayState.PLAYING) {
+                    btnPause.performClick();
+                } else if (playState == PlayState.PAUSED) {
+                    btnResume.performClick();
+                } else {
+                    btnPlay.performClick();
+                }
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+                if (playState == PlayState.PAUSED) {
+                    btnResume.performClick();
+                } else if (playState == PlayState.STOPPED) {
+                    btnPlay.performClick();
+                }
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                if (playState == PlayState.PLAYING) btnPause.performClick();
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                findViewById(R.id.btn_skip_to_live).performClick();
+                return true;
+            case KeyEvent.KEYCODE_MENU:
+                btnSettings.performClick();
+                return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override

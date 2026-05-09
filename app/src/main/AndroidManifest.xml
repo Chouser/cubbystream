@@ -15,6 +15,11 @@
     <!-- Post notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Fire TV / Android TV: touchscreen is not required -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- Marks as TV-compatible without excluding phone/tablet installs -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
 
     <application
         android:networkSecurityConfig="@xml/network_security_config"

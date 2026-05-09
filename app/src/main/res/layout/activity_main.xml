@@ -37,6 +37,8 @@
             android:text="▶ Play"
             android:textSize="14sp"
             android:enabled="false"
+            android:nextFocusRight="@id/btn_stop"
+            android:nextFocusDown="@id/btn_pause"
             android:backgroundTint="@color/btn_play_color"
             android:textColor="@color/text_on_accent"
             style="@style/Widget.MaterialComponents.Button" />
@@ -48,6 +50,8 @@
             android:text="■ Stop"
             android:textSize="14sp"
             android:enabled="false"
+            android:nextFocusLeft="@id/btn_play"
+            android:nextFocusDown="@id/btn_resume"
             android:backgroundTint="@color/btn_stop_color"
             android:textColor="@color/text_on_accent"
             style="@style/Widget.MaterialComponents.Button" />
@@ -453,6 +457,8 @@
                 android:layout_weight="1"
                 android:text="▶▶ Live"
                 android:textSize="16sp"
+                android:nextFocusUp="@id/btn_play"
+                android:nextFocusDown="@id/btn_pause"
                 android:backgroundTint="@color/btn_live_color"
                 android:textColor="@color/text_on_accent"
                 style="@style/Widget.MaterialComponents.Button"/>
@@ -476,6 +482,9 @@
                 android:textSize="17sp"
                 android:textStyle="bold"
                 android:enabled="false"
+                android:nextFocusUp="@id/btn_skip_to_live"
+                android:nextFocusRight="@id/btn_resume"
+                android:nextFocusDown="@id/btn_mode_game"
                 android:backgroundTint="@color/btn_pause_color"
                 android:textColor="@color/text_on_accent"
                 style="@style/Widget.MaterialComponents.Button"/>
@@ -489,6 +498,9 @@
                 android:text="▶  Resume"
                 android:textSize="17sp"
                 android:textStyle="bold"
+                android:nextFocusUp="@id/btn_stop"
+                android:nextFocusLeft="@id/btn_pause"
+                android:nextFocusDown="@id/btn_mode_auto"
                 android:backgroundTint="@color/btn_play_color"
                 android:textColor="@color/text_on_accent"
                 style="@style/Widget.MaterialComponents.Button"/>
@@ -521,6 +533,8 @@
                 android:text="🔊 Game"
                 android:textSize="13sp"
                 android:textColor="@color/text_on_accent"
+                android:nextFocusUp="@id/btn_pause"
+                android:nextFocusRight="@id/btn_mode_ads"
                 android:backgroundTint="@color/btn_inactive"
                 style="@style/Widget.MaterialComponents.Button"/>
 
@@ -534,6 +548,9 @@
                 android:text="🔇 Ads"
                 android:textSize="13sp"
                 android:textColor="@color/text_on_accent"
+                android:nextFocusUp="@id/btn_pause"
+                android:nextFocusLeft="@id/btn_mode_game"
+                android:nextFocusRight="@id/btn_mode_auto"
                 android:backgroundTint="@color/btn_inactive"
                 style="@style/Widget.MaterialComponents.Button"/>
 
@@ -546,6 +563,8 @@
                 android:text="🤖 Auto"
                 android:textSize="13sp"
                 android:textColor="@color/text_on_accent"
+                android:nextFocusUp="@id/btn_resume"
+                android:nextFocusLeft="@id/btn_mode_ads"
                 android:backgroundTint="@color/btn_inactive"
                 style="@style/Widget.MaterialComponents.Button"/>
 
