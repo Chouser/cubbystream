@@ -195,3 +195,8 @@ public static final String FEED_URL = "https://myserver.com/streams.json";
 private static final int CROWD_LOW_HZ  = 120;
 private static final int CROWD_HIGH_HZ = 1800;
 ```
+
+## Android dev and debug tips
+
+Dump error logs from app crashing on device:
+adb logcat *:E | grep AndroidRuntime

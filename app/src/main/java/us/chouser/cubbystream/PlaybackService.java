@@ -213,11 +213,13 @@ public class PlaybackService extends LifecycleService {
     // -------------------------------------------------------------------------
 
     private void createNotificationChannel() {
-        NotificationChannel ch = new NotificationChannel(
-                CHANNEL_ID, "Baseball Stream", NotificationManager.IMPORTANCE_LOW);
-        ch.setDescription("Baseball audio stream controls");
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) nm.createNotificationChannel(ch);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationChannel ch = new NotificationChannel(
+                    CHANNEL_ID, "Baseball Stream", NotificationManager.IMPORTANCE_LOW);
+            ch.setDescription("Baseball audio stream controls");
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.createNotificationChannel(ch);
+        }
     }
 
     private PendingIntent actionIntent(String action) {
