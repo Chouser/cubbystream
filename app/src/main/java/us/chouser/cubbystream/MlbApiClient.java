@@ -203,6 +203,8 @@ public class MlbApiClient {
                 deliver(() -> listener.onGameState(state));
             }
         } catch (Exception e) {
+            // TODO: sometimes errors here indicate the phone has gone to sleep?
+            // If there's no audio playing and the phone is off, shut down cleanly?
             Log.w(TAG, "fetchLiveFeed error: " + e.getMessage());
             deliver(() -> listener.onError("Live feed error: " + e.getMessage()));
         }

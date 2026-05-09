@@ -27,6 +27,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,9 +79,12 @@ public class MainActivity extends AppCompatActivity
     private ImageButton  btnSettings;
 
     // ---- Gameday views ----
-    private TextView     textScoreLine;
-    private FrameLayout  diamondFrame;
+    private ConstraintLayout layoutBaseballField;
     private TextView     textCountOuts;
+    private TextView     textAwayScore;
+    private TextView     textHomeScore;
+    private TextView     textAwayAbbr;
+    private TextView     textHomeAbbr;
     private ImageView    imgAwayLogo;
     private ImageView    imgHomeLogo;
     private ImageView    base1;
@@ -259,8 +263,11 @@ public class MainActivity extends AppCompatActivity
         btnModeAuto        = findViewById(R.id.btn_mode_auto);
         btnSettings        = findViewById(R.id.btn_settings);
 
-        textScoreLine      = findViewById(R.id.text_score_line);
-        diamondFrame       = findViewById(R.id.diamond_frame);
+        layoutBaseballField= findViewById(R.id.layout_baseball_field);
+        textAwayScore      = findViewById(R.id.text_away_score);
+        textHomeScore      = findViewById(R.id.text_home_score);
+        textAwayAbbr       = findViewById(R.id.text_away_abbr);
+        textHomeAbbr       = findViewById(R.id.text_home_abbr);
         textCountOuts      = findViewById(R.id.text_count_outs);
         imgAwayLogo        = findViewById(R.id.img_away_logo);
         imgHomeLogo        = findViewById(R.id.img_home_logo);
@@ -479,9 +486,9 @@ public class MainActivity extends AppCompatActivity
 
     /** Hide the scoreboard and show a placeholder message instead. */
     private void showGamedayPlaceholder(String message) {
-        // Repurpose textScoreLine as the placeholder (it's in the same area)
-        textScoreLine.setText(message);
-        diamondFrame.setVisibility(View.GONE);
+        // Repurpose textCountOuts as the placeholder (it's in the same area)
+        textCountOuts.setText(message);
+        layoutBaseballField.setVisibility(View.GONE);
         // Reset base icons
         base1.setImageResource(R.drawable.base_diamond_empty);
         base2.setImageResource(R.drawable.base_diamond_empty);
@@ -509,19 +516,18 @@ public class MainActivity extends AppCompatActivity
             startSelectedStream();
         }
 
-        diamondFrame.setVisibility(View.VISIBLE);
+        layoutBaseballField.setVisibility(View.VISIBLE);
 
-        //String half = state.isTopInning ? "▲" : "▼";
-        String topHalf = state.isTopInning ? "◤" : "";
-        String bottomHalf = state.isTopInning ? "" : "◢";
-        textScoreLine.setText(String.format("%s %d  |  %s%d%s  |  %s %d",
-                state.awayTeamAbbrev, state.awayScore,
-                topHalf, state.inning, bottomHalf,
-                state.homeTeamAbbrev, state.homeScore));
+        textAwayAbbr.setText(String.format("%s", state.awayTeamAbbrev));
+        textHomeAbbr.setText(String.format("%s", state.homeTeamAbbrev));
+        textAwayScore.setText(String.format("%d", state.awayScore));
+        textHomeScore.setText(String.format("%d", state.homeScore));
 
-        // Count / outs
+        // Inning / outs / count
+        String half = state.isTopInning ? "▲" : "▼";
         String outs    = repeat("●", state.outs)    + repeat("○", Math.max(0, 3 - state.outs));
-        textCountOuts.setText(String.format("%d balls  %d strikes  |  %s outs", state.balls, state.strikes, outs));
+        textCountOuts.setText(String.format("%s %d\nouts: %s\n%d - %d",
+            half, state.inning, outs, state.balls, state.strikes));
 
         // Base runners
         base1.setImageResource(state.runnerOnFirst  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
