@@ -398,7 +398,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Begin streaming when a live game is detected"
+                    android:text="Autoplay when game is underway"
                     android:textSize="11sp"
                     android:textColor="@color/text_secondary"/>
             </LinearLayout>

@@ -533,8 +533,8 @@ public class MainActivity extends AppCompatActivity
 
         // Players
         if (state.pitcherName != null) {
-            String pitcherLabel = state.pitcherPitchesThrown >= 0
-                    ? state.pitcherName + "\n" + state.pitcherPitchesThrown + " pitches"
+            String pitcherLabel = state.pitcherPitchesThrown > 0
+                    ? state.pitcherName + "\npitches: " + state.pitcherPitchesThrown
                     : state.pitcherName;
             textPitcherName.setText(pitcherLabel);
         } else {

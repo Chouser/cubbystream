@@ -254,24 +254,15 @@ public class MlbApiClient {
         String pitcherName = getDeepString(matchup, "pitcher", "fullName");
 
         // Per-game pitch count: matchup.pitcher.id → boxscore players map
-        int pitcherPitchesThrown = -1;
-        JSONObject pitcherNode = matchup != null ? matchup.optJSONObject("pitcher") : null;
-        int pitcherId = pitcherNode != null ? pitcherNode.optInt("id", -1) : -1;
+        int pitcherPitchesThrown = 0;
+        int pitcherId = getDeepInt(matchup, "pitcher", "id");
         if (pitcherId > 0) {
             String playerKey = "ID" + pitcherId;
             JSONObject boxTeams = getDeepObject(liveData, "boxscore", "teams");
-            if (boxTeams != null) {
-                for (String side : new String[]{"away", "home"}) {
-                    JSONObject players = getDeepObject(boxTeams, side, "players");
-                    if (players != null && players.has(playerKey)) {
-                        JSONObject pitching = getDeepObject(
-                                players.getJSONObject(playerKey), "stats", "pitching");
-                        if (pitching != null) {
-                            pitcherPitchesThrown = pitching.optInt("pitchesThrown", -1);
-                        }
-                        break;
-                    }
-                }
+            for (String side : new String[]{"away", "home"}) {
+                pitcherPitchesThrown = getDeepInt(
+                    boxTeams, side, "players", playerKey, "stats", "pitching", "pitchesThrown");
+                if (pitcherPitchesThrown > 0) break;
             }
         }
 
