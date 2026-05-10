@@ -30,6 +30,11 @@ public class GamedayController {
     private static final long MAX_HISTORY_MS = 120_000L; // see SettingsSheet.DELAY_MAX
 
     private Listener listener;
+
+    /** Re-attach a listener without restarting polling (used after orientation change). */
+    public void setListener(Listener listener) {
+        this.listener = listener;
+    }
     private long     baseDelayMs  = 20_000L; // configurable; default 20s
     private long     extraDelayMs = 0L;
 

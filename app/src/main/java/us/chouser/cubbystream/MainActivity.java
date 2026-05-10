@@ -32,6 +32,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.lifecycle.ViewModelProvider;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,7 @@ public class MainActivity extends AppCompatActivity
     private static final int REQ_NOTIFICATION = 101;
 
     private AppPrefs prefs;
+    private MainViewModel vm;
 
     // ---- Volume mode ----
     private enum VolumeMode { AUTO, GAME, ADS }
@@ -55,14 +57,8 @@ public class MainActivity extends AppCompatActivity
     private final DetectionLogger logger = new DetectionLogger();
     private int logFrameCount = 0;
 
-    // ---- Gameday ----
-    private final GamedayController gameday = new GamedayController();
-    private String currentGamedayUrl = null;  // built from most recent GameState
-
-    // ---- Auto-start ----
-    // True from app start (or feed item change) until a Live state triggers play,
-    // or the user manually stops the stream.
-    private boolean autoStartArmed = false;
+    // Convenience accessors so call-sites don't change much
+    private MainViewModel.PlayState playState() { return vm.playState; }
 
     // ---- TV / Fire TV ----
     private boolean isTv = false;
@@ -108,18 +104,12 @@ public class MainActivity extends AppCompatActivity
     private TextView     textNoGame;      // shown when no game / no teamId
     private TextView     btnGamedayData;
 
-    // ---- Feed / spinner state ----
-    private List<StreamItem> feedItems = new ArrayList<>();
-    private int selectedPosition = 0;
-    private boolean spinnerReady = false;
-
     // ---- Service ----
     private PlaybackService service;
     private boolean bound = false;
 
-    // ---- Playback state ----
-    private enum PlayState { STOPPED, PLAYING, PAUSED }
-    private PlayState playState = PlayState.STOPPED;
+    // ---- Spinner ready flag (view-local, no need to survive rotation) ----
+    private boolean spinnerReady = false;
 
     // ---- Current stream info ----
     private String currentTitle = "";
@@ -133,11 +123,11 @@ public class MainActivity extends AppCompatActivity
             bound = true;
 
             if (service.isPlaying()) {
-                playState = PlayState.PLAYING;
+                vm.playState = MainViewModel.PlayState.PLAYING;
             } else if (service.hasActiveStream()) {
-                playState = PlayState.PAUSED;
+                vm.playState = MainViewModel.PlayState.PAUSED;
             } else {
-                playState = PlayState.STOPPED;
+                vm.playState = MainViewModel.PlayState.STOPPED;
             }
             updatePlaybackUi();
             applyVolumeMode(VolumeMode.AUTO);
@@ -147,9 +137,9 @@ public class MainActivity extends AppCompatActivity
                 service.setAdsVolumePct(prefs.getAdsVolumePct());
             }
 
-            if (pendingPlay) {
-                pendingPlay = false;
-                if (!feedItems.isEmpty()) doPlayStream(feedItems.get(selectedPosition));
+            if (vm.pendingPlay) {
+                vm.pendingPlay = false;
+                if (!vm.feedItems.isEmpty()) doPlayStream(vm.feedItems.get(vm.selectedPosition));
             }
         }
 
@@ -157,7 +147,7 @@ public class MainActivity extends AppCompatActivity
         public void onServiceDisconnected(ComponentName name) {
             bound = false;
             service = null;
-            playState = PlayState.STOPPED;
+            vm.playState = MainViewModel.PlayState.STOPPED;
             runOnUiThread(() -> {
                 updatePlaybackUi();
                 layoutInfoPanel.setVisibility(View.GONE);
@@ -174,12 +164,19 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        vm = new ViewModelProvider(this).get(MainViewModel.class);
+
         bindViews();
         setupClickListeners();
         requestNotificationPermission();
 
         prefs = new AppPrefs(this);
-        autoStartArmed = prefs.getAutoStartAudio();
+
+        // Only initialise autoStartArmed from prefs on first launch, not on rotation.
+        if (!vm.autoStartInitialised) {
+            vm.autoStartArmed = prefs.getAutoStartAudio();
+            vm.autoStartInitialised = true;
+        }
 
         UiModeManager uiModeManager = (UiModeManager) getSystemService(UI_MODE_SERVICE);
         isTv = uiModeManager != null &&
@@ -190,8 +187,15 @@ public class MainActivity extends AppCompatActivity
         Intent si = new Intent(this, PlaybackService.class);
         bindService(si, connection, BIND_AUTO_CREATE);
 
-        loadFeed();
-        showGamedayPlaceholder("Select a stream to load game data.");
+        // Re-attach gameday listener after rotation; only load feed on first launch.
+        vm.gameday.setListener(this);
+        if (vm.feedItems.isEmpty()) {
+            loadFeed();
+            showGamedayPlaceholder("Select a stream to load game data.");
+        } else {
+            // Restore spinner to previously selected item
+            populateSpinner(false);
+        }
     }
 
     @Override
@@ -212,35 +216,37 @@ public class MainActivity extends AppCompatActivity
         boolean nowPlaying = service.isPlaying();
         boolean hasStream  = service.hasActiveStream();
 
-        PlayState previous = playState;
+        MainViewModel.PlayState previous = vm.playState;
 
         if (nowPlaying) {
-            playState = PlayState.PLAYING;
+            vm.playState = MainViewModel.PlayState.PLAYING;
         } else if (hasStream) {
-            playState = PlayState.PAUSED;
+            vm.playState = MainViewModel.PlayState.PAUSED;
         } else {
-            playState = PlayState.STOPPED;
+            vm.playState = MainViewModel.PlayState.STOPPED;
         }
 
         // If the service transitioned paused → playing while we were away,
         // inform gameday so it clears the pause accumulator.
-        if (previous == PlayState.PAUSED && playState == PlayState.PLAYING) {
-            gameday.onStreamResumed();
+        if (previous == MainViewModel.PlayState.PAUSED
+                && vm.playState == MainViewModel.PlayState.PLAYING) {
+            vm.gameday.onStreamResumed();
         }
         // If the service transitioned playing → paused while we were away,
         // inform gameday so pause accumulation starts from now.
-        if (previous == PlayState.PLAYING && playState == PlayState.PAUSED) {
-            gameday.onStreamPaused();
+        if (previous == MainViewModel.PlayState.PLAYING
+                && vm.playState == MainViewModel.PlayState.PAUSED) {
+            vm.gameday.onStreamPaused();
         }
         // If no stream is active, snap gameday to live so the display stays current.
-        if (playState == PlayState.STOPPED) {
-            gameday.onLive();
+        if (vm.playState == MainViewModel.PlayState.STOPPED) {
+            vm.gameday.onLive();
         }
 
         updatePlaybackUi();
 
         if (isTv) {
-            if (playState == PlayState.PLAYING) {
+            if (vm.playState == MainViewModel.PlayState.PLAYING) {
                 btnPause.requestFocus();
             } else {
                 btnPlay.requestFocus();
@@ -252,23 +258,23 @@ public class MainActivity extends AppCompatActivity
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                if (playState == PlayState.PLAYING) {
+                if (vm.playState == MainViewModel.PlayState.PLAYING) {
                     btnPause.performClick();
-                } else if (playState == PlayState.PAUSED) {
+                } else if (vm.playState == MainViewModel.PlayState.PAUSED) {
                     btnResume.performClick();
                 } else {
                     btnPlay.performClick();
                 }
                 return true;
             case KeyEvent.KEYCODE_MEDIA_PLAY:
-                if (playState == PlayState.PAUSED) {
+                if (vm.playState == MainViewModel.PlayState.PAUSED) {
                     btnResume.performClick();
-                } else if (playState == PlayState.STOPPED) {
+                } else if (vm.playState == MainViewModel.PlayState.STOPPED) {
                     btnPlay.performClick();
                 }
                 return true;
             case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                if (playState == PlayState.PLAYING) btnPause.performClick();
+                if (vm.playState == MainViewModel.PlayState.PLAYING) btnPause.performClick();
                 return true;
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
                 findViewById(R.id.btn_skip_to_live).performClick();
@@ -294,7 +300,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onDestroy() {
         logger.close();
-        gameday.stop();
+        vm.gameday.setListener(null);
         if (bound) {
             unbindService(connection);
             bound = false;
@@ -356,18 +362,18 @@ public class MainActivity extends AppCompatActivity
         btnStop.setOnClickListener(v -> stopStream());
 
         btnPlay.setOnClickListener(v -> {
-            if (playState == PlayState.PAUSED && bound && service != null) {
+            if (vm.playState == MainViewModel.PlayState.PAUSED && bound && service != null) {
                 service.resume();
-                gameday.onStreamResumed();
+                vm.gameday.onStreamResumed();
             } else {
                 startSelectedStream();
             }
         });
 
         btnResume.setOnClickListener(v -> {
-            if (playState == PlayState.PAUSED && bound && service != null) {
+            if (vm.playState == MainViewModel.PlayState.PAUSED && bound && service != null) {
                 service.resume();
-                gameday.onStreamResumed();
+                vm.gameday.onStreamResumed();
             } else {
                 startSelectedStream();
             }
@@ -376,13 +382,13 @@ public class MainActivity extends AppCompatActivity
         btnPause.setOnClickListener(v -> {
             if (bound && service != null) {
                 service.pause();
-                gameday.onStreamPaused();
+                vm.gameday.onStreamPaused();
             }
         });
 
         findViewById(R.id.btn_skip_to_live).setOnClickListener(v -> {
             if (bound && service != null) service.skipToLive();
-            gameday.onLive();
+            vm.gameday.onLive();
         });
 
         btnModeGame.setOnClickListener(v -> applyVolumeMode(VolumeMode.GAME));
@@ -396,8 +402,8 @@ public class MainActivity extends AppCompatActivity
         });
 
         btnGamedayData.setOnClickListener(v -> {
-            if (currentGamedayUrl != null) {
-                Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(currentGamedayUrl));
+            if (vm.currentGamedayUrl != null) {
+                Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(vm.currentGamedayUrl));
                 startActivity(i);
             } else {
                 Toast.makeText(this, "No game data available yet", Toast.LENGTH_SHORT).show();
@@ -408,9 +414,9 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (!spinnerReady) return;
-                if (position == selectedPosition) return;
-                selectedPosition = position;
-                if (playState != PlayState.STOPPED) stopStream();
+                if (position == vm.selectedPosition) return;
+                vm.selectedPosition = position;
+                if (vm.playState != MainViewModel.PlayState.STOPPED) stopStream();
                 startGamedayForSelected();
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
@@ -429,12 +435,12 @@ public class MainActivity extends AppCompatActivity
             public void onSuccess(StreamFeed feed) {
                 textStatus.setVisibility(View.GONE);
                 List<StreamItem> streams = feed.getStreams();
-                feedItems = (streams != null) ? streams : new ArrayList<>();
-                if (feedItems.isEmpty()) {
+                vm.feedItems = (streams != null) ? streams : new ArrayList<>();
+                if (vm.feedItems.isEmpty()) {
                     showStatus("No streams available right now.");
                     return;
                 }
-                populateSpinner();
+                populateSpinner(true);
                 if (feed.getUpdated() != null && !feed.getUpdated().isEmpty()) {
                     Toast.makeText(MainActivity.this,
                             "Updated: " + feed.getUpdated(), Toast.LENGTH_SHORT).show();
@@ -447,23 +453,28 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    private void populateSpinner() {
+    /**
+     * Populates the spinner from vm.feedItems.
+     * @param resetSelection true on fresh feed load (resets to position 0 and
+     *                       re-arms auto-start); false on rotation restore
+     *                       (preserves vm.selectedPosition, leaves auto-start alone).
+     */
+    private void populateSpinner(boolean resetSelection) {
         List<String> titles = new ArrayList<>();
-        for (StreamItem item : feedItems) titles.add(item.getTitle());
+        for (StreamItem item : vm.feedItems) titles.add(item.getTitle());
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this, R.layout.spinner_item, titles);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerReady = false;
         spinnerStream.setAdapter(adapter);
-        spinnerStream.setSelection(0, false);
-        selectedPosition = 0;
+        if (resetSelection) {
+            vm.selectedPosition = 0;
+            // Re-arm auto-start on a fresh feed load (not on rotation)
+            vm.autoStartArmed = prefs != null && prefs.getAutoStartAudio();
+            startGamedayForSelected();
+        }
+        spinnerStream.setSelection(vm.selectedPosition, false);
         spinnerReady = true;
-
-        // Re-arm auto-start whenever the feed is (re)loaded
-        autoStartArmed = prefs != null && prefs.getAutoStartAudio();
-
-        // Begin polling game state for the default selection immediately
-        startGamedayForSelected();
     }
 
     /**
@@ -473,10 +484,10 @@ public class MainActivity extends AppCompatActivity
      * keep the display snapped to the latest available state.
      */
     private void startGamedayForSelected() {
-        gameday.stop();
-        currentGamedayUrl = null;
-        if (feedItems.isEmpty()) return;
-        StreamItem item = feedItems.get(selectedPosition);
+        vm.gameday.stop();
+        vm.currentGamedayUrl = null;
+        if (vm.feedItems.isEmpty()) return;
+        StreamItem item = vm.feedItems.get(vm.selectedPosition);
         if (!item.hasTeam()) {
             showGamedayPlaceholder("No team ID in stream — gameday data unavailable.");
             return;
@@ -484,10 +495,9 @@ public class MainActivity extends AppCompatActivity
         int pollSec  = prefs != null ? prefs.getPollInterval() : AppPrefs.DEFAULT_POLL_INTERVAL;
         long delayMs = (prefs != null ? prefs.getApiDelay()    : AppPrefs.DEFAULT_API_DELAY) * 1000L;
         showGamedayPlaceholder("Loading game data…");
-        gameday.start(item.getTeamId(), pollSec, delayMs, this);
-        // If audio is not playing, snap display to latest (no offset applies)
-        if (playState == PlayState.STOPPED) {
-            gameday.onLive();
+        vm.gameday.start(item.getTeamId(), pollSec, delayMs, this);
+        if (vm.playState == MainViewModel.PlayState.STOPPED) {
+            vm.gameday.onLive();
         }
     }
 
@@ -500,11 +510,9 @@ public class MainActivity extends AppCompatActivity
     // Playback control
     // =========================================================================
 
-    private boolean pendingPlay = false;
-
     private void startSelectedStream() {
-        if (feedItems.isEmpty()) return;
-        StreamItem item = feedItems.get(selectedPosition);
+        if (vm.feedItems.isEmpty()) return;
+        StreamItem item = vm.feedItems.get(vm.selectedPosition);
         if (!item.isValid()) {
             Toast.makeText(this, "Invalid stream URL", Toast.LENGTH_SHORT).show();
             return;
@@ -513,7 +521,7 @@ public class MainActivity extends AppCompatActivity
         ContextCompat.startForegroundService(this, si);
         if (!bound) {
             bindService(si, connection, BIND_AUTO_CREATE);
-            pendingPlay = true;
+            vm.pendingPlay = true;
         } else {
             doPlayStream(item);
         }
@@ -529,19 +537,19 @@ public class MainActivity extends AppCompatActivity
 
         // Gameday is already polling from startGamedayForSelected(); just reset
         // the offset so display reflects "starting from live" for this stream session.
-        gameday.onLive();
+        vm.gameday.onLive();
     }
 
     private void stopStream() {
         logger.close();
         // Disarm auto-start: user explicitly stopped, don't re-trigger automatically
-        autoStartArmed = false;
+        vm.autoStartArmed = false;
         if (bound && service != null) service.stopStream();
-        playState = PlayState.STOPPED;
+        vm.playState = MainViewModel.PlayState.STOPPED;
         updatePlaybackUi();
         layoutInfoPanel.setVisibility(View.GONE);
         // Keep gameday polling but snap to live since there's no longer an audio offset
-        gameday.onLive();
+        vm.gameday.onLive();
     }
 
     // =========================================================================
@@ -571,12 +579,12 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onGameStateApplied(GameState state) {
         // Already on main thread
-        currentGamedayUrl = state.gamedayUrl();
+        vm.currentGamedayUrl = state.gamedayUrl();
 
         // Auto-start audio the first time we see a Live game, if armed
-        if (autoStartArmed && "Live".equalsIgnoreCase(state.abstractGameState)
-                && playState == PlayState.STOPPED) {
-            autoStartArmed = false;
+        if (vm.autoStartArmed && "Live".equalsIgnoreCase(state.abstractGameState)
+                && vm.playState == MainViewModel.PlayState.STOPPED) {
+            vm.autoStartArmed = false;
             startSelectedStream();
         }
 
@@ -643,8 +651,8 @@ public class MainActivity extends AppCompatActivity
     // =========================================================================
 
     private void updatePlaybackUi() {
-        boolean playing = playState == PlayState.PLAYING;
-        boolean stopped = playState == PlayState.STOPPED;
+        boolean playing = vm.playState == MainViewModel.PlayState.PLAYING;
+        boolean stopped = vm.playState == MainViewModel.PlayState.STOPPED;
         btnStop.setEnabled(!stopped);
         btnPause.setEnabled(playing);
         btnPlay.setEnabled(!playing);
@@ -707,11 +715,11 @@ public class MainActivity extends AppCompatActivity
     public void onPlaybackStateChanged(boolean isPlaying) {
         runOnUiThread(() -> {
             if (isPlaying) {
-                playState = PlayState.PLAYING;
+                vm.playState = MainViewModel.PlayState.PLAYING;
             } else if (bound && service != null && service.hasActiveStream()) {
-                playState = PlayState.PAUSED;
+                vm.playState = MainViewModel.PlayState.PAUSED;
             } else {
-                playState = PlayState.STOPPED;
+                vm.playState = MainViewModel.PlayState.STOPPED;
             }
             updatePlaybackUi();
         });
@@ -795,21 +803,20 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onPollIntervalChanged(int sec) {
-        gameday.updatePollInterval(sec);
+        vm.gameday.updatePollInterval(sec);
     }
 
     @Override
     public void onApiDelayChanged(int sec) {
-        gameday.setBaseDelayMs(sec * 1000L);
+        vm.gameday.setBaseDelayMs(sec * 1000L);
     }
 
     @Override
     public void onAutoStartAudioChanged(boolean enabled) {
-        // Re-arm if the user just turned it on (and audio isn't already playing)
-        if (enabled && playState == PlayState.STOPPED) {
-            autoStartArmed = true;
+        if (enabled && vm.playState == MainViewModel.PlayState.STOPPED) {
+            vm.autoStartArmed = true;
         } else if (!enabled) {
-            autoStartArmed = false;
+            vm.autoStartArmed = false;
         }
     }
 
