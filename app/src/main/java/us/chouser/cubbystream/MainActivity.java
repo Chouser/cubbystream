@@ -551,7 +551,7 @@ public class MainActivity extends AppCompatActivity
     private void showGamedayPlaceholder(String message) {
         // Repurpose textCountOuts as the placeholder (it's in the same area)
         textCountOuts.setText(message);
-        layoutBaseballField.setVisibility(View.GONE);
+        //layoutBaseballField.setVisibility(View.GONE);
         // Reset base icons
         base1.setImageResource(R.drawable.base_diamond_empty);
         base2.setImageResource(R.drawable.base_diamond_empty);
@@ -579,7 +579,7 @@ public class MainActivity extends AppCompatActivity
             startSelectedStream();
         }
 
-        layoutBaseballField.setVisibility(View.VISIBLE);
+        //layoutBaseballField.setVisibility(View.VISIBLE);
 
         textAwayAbbr.setText(String.format("%s", state.awayTeamAbbrev));
         textHomeAbbr.setText(String.format("%s", state.homeTeamAbbrev));
