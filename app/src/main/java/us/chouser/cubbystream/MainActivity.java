@@ -22,6 +22,7 @@ import android.widget.ProgressBar;
 import android.app.UiModeManager;
 import android.content.res.Configuration;
 import android.view.KeyEvent;
+import android.view.WindowManager;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -183,6 +184,8 @@ public class MainActivity extends AppCompatActivity
         isTv = uiModeManager != null &&
                uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
 
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         Intent si = new Intent(this, PlaybackService.class);
         bindService(si, connection, BIND_AUTO_CREATE);
 
@@ -270,7 +273,13 @@ public class MainActivity extends AppCompatActivity
                 findViewById(R.id.btn_skip_to_live).performClick();
                 return true;
             case KeyEvent.KEYCODE_MENU:
-                btnSettings.performClick();
+                SettingsSheet existing = (SettingsSheet) getSupportFragmentManager()
+                        .findFragmentByTag("settings");
+                if (existing != null && existing.isVisible()) {
+                    existing.dismiss();
+                } else {
+                    btnSettings.performClick();
+                }
                 return true;
         }
         return super.onKeyDown(keyCode, event);
