@@ -2,93 +2,63 @@ package us.chouser.cubbystream;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
-
 import androidx.media3.common.audio.AudioProcessor;
 import androidx.media3.common.C;
 import androidx.media3.common.util.UnstableApi;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-/**
- * Crowd noise detector implemented as a Media3 AudioProcessor.
- * Pass-through: audio is copied unchanged; PCM is tapped inline for FFT analysis.
- *
- * Fires onCommercialDetected / onGameResumed on the main thread.
- * Also fires onEnergyUpdate every frame with the current smoothed energy
- * and threshold, so the UI can show a live level meter for calibration.
- */
 @UnstableApi
 public class CrowdNoiseDetector implements AudioProcessor {
-
-    private static final String TAG = "CrowdNoiseDetector";
-
-    private static final int FFT_SIZE       = 2048;
-    private static final int CROWD_LOW_HZ   = 120;
-    private static final int CROWD_HIGH_HZ  = 1800;
-    private static final int SMOOTH_FRAMES  = 40;
+    private static final int FFT_SIZE = 2048;
+    private static final int SMOOTH_FRAMES = 40;
     private static final int TRIGGER_FRAMES = 25;
 
-    /** Adjustable threshold — expose for live display and future settings screen. */
     public float threshold = 200f;
 
     public interface Listener {
         void onCommercialDetected();
         void onGameResumed();
-        /** Called ~10x/sec with the current smoothed energy level and threshold. */
-        void onEnergyUpdate(float energy, float threshold);
+        /** Now carries full spectral statistics for logging. */
+        void onStatsUpdate(float energy, float flatness, float flux, float papr, 
+                           float zcr, float lowB, float midB, float highB, float threshold);
     }
 
-    Listener listener; // package-private — wired by PlaybackService
+    Listener listener;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    // AudioProcessor state
-    private AudioFormat inputFormat  = AudioFormat.NOT_SET;
-    private ByteBuffer  outputBuffer = EMPTY_BUFFER;
-    private boolean     inputEnded   = false;
+    private AudioFormat inputFormat = AudioFormat.NOT_SET;
+    private ByteBuffer outputBuffer = EMPTY_BUFFER;
+    private boolean inputEnded = false;
 
-    // Analysis buffers
     private final float[] monoAccum = new float[FFT_SIZE];
-    private int           accumPos  = 0;
-    private final float[] realPart  = new float[FFT_SIZE];
-    private final float[] imagPart  = new float[FFT_SIZE];
+    private int accumPos = 0;
+    private final float[] realPart = new float[FFT_SIZE];
+    private final float[] imagPart = new float[FFT_SIZE];
+    private final float[] prevMag = new float[FFT_SIZE / 2];
 
-    // Rolling average
     private final float[] smoothBuf = new float[SMOOTH_FRAMES];
-    private int   smoothIdx = 0;
+    private int smoothIdx = 0;
     private float smoothSum = 0f;
 
-    // UI throttle: fire onEnergyUpdate every N FFT frames (~4x/sec at 44100/2048)
-    private static final int UI_UPDATE_EVERY = 6;
-    private int uiFrameCount = 0;
+    private float lastSample = 0;
+    private int zcCount = 0;
+    private int totalSamplesInFrame = 0;
 
-    // State machine
-    private int     belowCount   = 0;
-    private int     aboveCount   = 0;
+    private int belowCount = 0;
+    private int aboveCount = 0;
     private boolean inCommercial = false;
-
-    // Cached from configure()
-    private int sampleRate   = 44100;
+    private int sampleRate = 44100;
     private int channelCount = 2;
 
-    public CrowdNoiseDetector(Listener listener) {
-        this.listener = listener;
-    }
-
-    // =========================================================================
-    // AudioProcessor
-    // =========================================================================
+    public CrowdNoiseDetector(Listener listener) { this.listener = listener; }
 
     @Override
     public AudioFormat configure(AudioFormat inputFormat) throws UnhandledAudioFormatException {
-        if (inputFormat.encoding != C.ENCODING_PCM_16BIT) {
-            throw new UnhandledAudioFormatException(inputFormat);
-        }
-        this.inputFormat  = inputFormat;
-        this.sampleRate   = inputFormat.sampleRate;
+        if (inputFormat.encoding != C.ENCODING_PCM_16BIT) throw new UnhandledAudioFormatException(inputFormat);
+        this.inputFormat = inputFormat;
+        this.sampleRate = inputFormat.sampleRate;
         this.channelCount = inputFormat.channelCount;
-        Log.d(TAG, "Configured: " + sampleRate + " Hz, " + channelCount + " ch");
         return inputFormat;
     }
 
@@ -108,36 +78,25 @@ public class CrowdNoiseDetector implements AudioProcessor {
         analyseBuffer(forAnalysis, remaining);
     }
 
-    @Override public void queueEndOfStream() { inputEnded = true; }
-
-    @Override
-    public ByteBuffer getOutput() {
-        ByteBuffer out = outputBuffer;
-        outputBuffer = EMPTY_BUFFER;
-        return out;
-    }
-
-    @Override public boolean isEnded() { return inputEnded && outputBuffer == EMPTY_BUFFER; }
-    @Override public void flush() { outputBuffer = EMPTY_BUFFER; inputEnded = false; accumPos = 0; }
-
-    @Override
-    public void reset() {
-        flush();
-        inputFormat = AudioFormat.NOT_SET;
-        resetDetectionState();
-    }
-
-    // =========================================================================
-    // Analysis
-    // =========================================================================
-
     private void analyseBuffer(ByteBuffer buf, int byteCount) {
         int frameCount = byteCount / (2 * channelCount);
         for (int f = 0; f < frameCount; f++) {
             float mono = 0f;
             for (int c = 0; c < channelCount; c++) mono += buf.getShort() / 32768f;
-            monoAccum[accumPos++] = mono / channelCount;
-            if (accumPos == FFT_SIZE) { processFrame(); accumPos = 0; }
+            mono /= channelCount;
+
+            // Zero Crossing Rate calculation
+            if ((lastSample > 0 && mono <= 0) || (lastSample < 0 && mono >= 0)) zcCount++;
+            lastSample = mono;
+            totalSamplesInFrame++;
+
+            monoAccum[accumPos++] = mono;
+            if (accumPos == FFT_SIZE) { 
+                processFrame(); 
+                accumPos = 0; 
+                zcCount = 0; 
+                totalSamplesInFrame = 0; 
+            }
         }
     }
 
@@ -149,24 +108,57 @@ public class CrowdNoiseDetector implements AudioProcessor {
         }
         fft(realPart, imagPart, FFT_SIZE);
 
-        float bandEnergy = computeBandEnergy(
-                realPart, imagPart, CROWD_LOW_HZ, CROWD_HIGH_HZ, sampleRate, FFT_SIZE);
-
-        smoothSum -= smoothBuf[smoothIdx];
-        smoothBuf[smoothIdx] = bandEnergy;
-        smoothSum += bandEnergy;
-        smoothIdx = (smoothIdx + 1) % SMOOTH_FRAMES;
-
-        float avg = smoothSum / SMOOTH_FRAMES;
-        float snap = threshold; // capture for lambda
-
-        // Deliver energy update to UI at ~4x/sec (every UI_UPDATE_EVERY frames)
-        if (++uiFrameCount >= UI_UPDATE_EVERY) {
-            uiFrameCount = 0;
-            mainHandler.post(() -> { if (listener != null) listener.onEnergyUpdate(avg, snap); });
+        // 1. Calculate Magnitudes and Stats
+        float sumMag = 0, sumLogMag = 0, maxMag = 0, fluxVal = 0;
+        int bins = FFT_SIZE / 2;
+        
+        for (int i = 0; i < bins; i++) {
+            float mag = (float) Math.sqrt(realPart[i] * realPart[i] + imagPart[i] * imagPart[i]);
+            sumMag += mag;
+            sumLogMag += (float) Math.log(mag + 1e-6f);
+            if (mag > maxMag) maxMag = mag;
+            
+            float diff = mag - prevMag[i];
+            fluxVal += (diff > 0) ? diff : 0; 
+            prevMag[i] = mag;
         }
 
-        updateStateMachine(avg);
+        float avgMag = sumMag / bins;
+        float flatnessVal = (float) Math.exp(sumLogMag / bins) / (avgMag + 1e-6f);
+        float paprVal = maxMag / (avgMag + 1e-6f);
+        float zcrVal = (float) zcCount / totalSamplesInFrame;
+
+        // 2. Multi-band Energy
+        float lowE = computeBandEnergy(realPart, imagPart, 20, 120, sampleRate, FFT_SIZE);
+        float midE = computeBandEnergy(realPart, imagPart, 120, 1800, sampleRate, FFT_SIZE);
+        float highE = computeBandEnergy(realPart, imagPart, 1800, 8000, sampleRate, FFT_SIZE);
+
+        // 3. Smoothing and State Machine
+        smoothSum -= smoothBuf[smoothIdx];
+        smoothBuf[smoothIdx] = midE;
+        smoothSum += midE;
+        smoothIdx = (smoothIdx + 1) % SMOOTH_FRAMES;
+        float avgMid = smoothSum / SMOOTH_FRAMES;
+
+        // --- FINAL SNAPSHOT FOR LAMBDA ---
+        // We copy these to final variables so the lambda can "capture" them safely.
+        final float fAvgMid = avgMid;
+        final float fFlatness = flatnessVal;
+        final float fFlux = fluxVal;
+        final float fPapr = paprVal;
+        final float fZcr = zcrVal;
+        final float fLowE = lowE;
+        final float fMidE = midE;
+        final float fHighE = highE;
+        final float fThreshold = threshold;
+
+        mainHandler.post(() -> {
+            if (listener != null) {
+                listener.onStatsUpdate(fAvgMid, fFlatness, fFlux, fPapr, fZcr, fLowE, fMidE, fHighE, fThreshold);
+            }
+        });
+
+        updateStateMachine(avgMid);
     }
 
     private void updateStateMachine(float avg) {
@@ -185,10 +177,7 @@ public class CrowdNoiseDetector implements AudioProcessor {
         }
     }
 
-    // =========================================================================
-    // DSP
-    // =========================================================================
-
+    // [computeBandEnergy and fft methods remain identical to previous version]
     private float computeBandEnergy(float[] re, float[] im, int lo, int hi, int sr, int n) {
         int loBin = (int) Math.ceil((double) lo * n / sr);
         int hiBin = Math.min((int) Math.floor((double) hi * n / sr), n / 2 - 1);
@@ -206,7 +195,7 @@ public class CrowdNoiseDetector implements AudioProcessor {
             j ^= bit;
             if (i < j) {
                 float t = re[i]; re[i] = re[j]; re[j] = t;
-                      t = im[i]; im[i] = im[j]; im[j] = t;
+                t = im[i]; im[i] = im[j]; im[j] = t;
             }
         }
         for (int len = 2; len <= n; len <<= 1) {
@@ -226,10 +215,6 @@ public class CrowdNoiseDetector implements AudioProcessor {
         }
     }
 
-    // =========================================================================
-    // Public control
-    // =========================================================================
-
     /** Called when user enters Game or Ads mode — clears consecutive-frame counters. */
     public void resetCounters() {
         belowCount = 0;
@@ -238,9 +223,26 @@ public class CrowdNoiseDetector implements AudioProcessor {
 
     public boolean isInCommercial() { return inCommercial; }
 
-    private void resetDetectionState() {
-        belowCount = aboveCount = accumPos = smoothIdx = uiFrameCount = 0;
-        smoothSum = 0f; inCommercial = false;
-        for (int i = 0; i < SMOOTH_FRAMES; i++) smoothBuf[i] = 0f;
+    @Override
+    public void reset() {
+        flush();
+        inputFormat = AudioFormat.NOT_SET;
+        resetDetectionState();
     }
+
+    private void resetDetectionState() {
+        belowCount = aboveCount = accumPos = smoothIdx = 0;
+        smoothSum = 0f; 
+        inCommercial = false;
+        lastSample = 0;
+        zcCount = 0;
+        totalSamplesInFrame = 0;
+        for (int i = 0; i < SMOOTH_FRAMES; i++) smoothBuf[i] = 0f;
+        for (int i = 0; i < FFT_SIZE / 2; i++) prevMag[i] = 0f;
+    }
+
+    @Override public void queueEndOfStream() { inputEnded = true; }
+    @Override public ByteBuffer getOutput() { ByteBuffer out = outputBuffer; outputBuffer = EMPTY_BUFFER; return out; }
+    @Override public boolean isEnded() { return inputEnded && outputBuffer == EMPTY_BUFFER; }
+    @Override public void flush() { outputBuffer = EMPTY_BUFFER; inputEnded = false; accumPos = 0; }
 }

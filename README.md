@@ -178,25 +178,14 @@ progress bar showing energy relative to threshold. The mode indicator reads one 
 
 ---
 
-## Customization
-
-**Commercial volume level** — in `PlaybackService.java`:
-```java
-public static final float REDUCED_VOLUME = 0.10f; // 10%
-```
-
-**Feed URL** — in `FeedFetcher.java`:
-```java
-public static final String FEED_URL = "https://myserver.com/streams.json";
-```
-
-**Crowd noise band** — in `CrowdNoiseDetector.java`:
-```java
-private static final int CROWD_LOW_HZ  = 120;
-private static final int CROWD_HIGH_HZ = 1800;
-```
-
 ## Android dev and debug tips
 
 Dump error logs from app crashing on device:
+```bash
 adb logcat *:E | grep AndroidRuntime
+```
+
+Download the DetectionLogger logs:
+```bash
+adb pull /sdcard/Android/data/us.chouser.cubbystream/files/logs
+```

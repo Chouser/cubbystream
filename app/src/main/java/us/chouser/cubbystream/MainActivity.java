@@ -35,6 +35,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity
         implements PlaybackService.PlaybackListener,
@@ -741,19 +742,44 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onEnergyUpdate(float energy, float threshold) {
+    public void onStatsUpdate(float energy, float flatness, float flux, float papr, 
+                            float zcr, float lowB, float midB, float highB, float threshold) {
+        
+        // Throttling: only log roughly once per second (every 4th callback)
         if (++logFrameCount >= 4) {
             logFrameCount = 0;
+            
             boolean detectorInAds = service != null && service.detectorIsInCommercial();
-            logger.log(energy, threshold, detectorInAds,
-                    volumeMode.name().toLowerCase(), currentTitle);
+            
+            // Pass the full spectral signature to the logger
+            logger.log(
+                energy,      // This is the smoothed mid-band energy
+                flatness, 
+                flux, 
+                papr, 
+                zcr, 
+                lowB, 
+                midB, 
+                highB, 
+                threshold, 
+                detectorInAds,
+                volumeMode.name().toLowerCase(), 
+                currentTitle
+            );
         }
+
+        // UI Updates (remains on the Main Thread)
         runOnUiThread(() -> {
-            textEnergyLevel.setText(String.format("Level: %.1f", energy));
-            textThreshold.setText(String.format("Thr: %.1f", threshold));
+            textEnergyLevel.setText(String.format(Locale.US, "Level: %.1f", energy));
+            textThreshold.setText(String.format(Locale.US, "Thr: %.1f", threshold));
+            
             updateModeIndicatorLabel();
+
+            // Level meter visualization
             int pct = (int) Math.min((energy / threshold) * 50f, 100);
             progressEnergy.setProgress(pct);
+            
+            // Green if above threshold (Game), Red if below (Ads)
             int color = energy >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
             progressEnergy.getProgressDrawable().setTint(color);
         });
