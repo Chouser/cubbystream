@@ -19,9 +19,8 @@ public class CrowdNoiseDetector implements AudioProcessor {
     public interface Listener {
         void onCommercialDetected();
         void onGameResumed();
-        /** Now carries full spectral statistics for logging. */
-        void onStatsUpdate(float energy, float flatness, float flux, float papr, 
-                           float zcr, float lowB, float midB, float highB, float threshold);
+        void onStatsUpdate(float totalVolume, float energy, float flatness, float flux, 
+                        float papr, float zcr, float lowB, float midB, float highB, float threshold);
     }
 
     Listener listener;
@@ -101,6 +100,13 @@ public class CrowdNoiseDetector implements AudioProcessor {
     }
 
     private void processFrame() {
+        // Calculate Total Volume (RMS) from the raw mono samples
+        float sumSquares = 0f;
+        for (float sample : monoAccum) {
+            sumSquares += sample * sample;
+        }
+        float rms = (float) Math.sqrt(sumSquares / FFT_SIZE) * 1000f; // Scaled for readability
+
         for (int i = 0; i < FFT_SIZE; i++) {
             float hann = 0.5f * (1f - (float) Math.cos(2.0 * Math.PI * i / (FFT_SIZE - 1)));
             realPart[i] = monoAccum[i] * hann;
@@ -108,7 +114,7 @@ public class CrowdNoiseDetector implements AudioProcessor {
         }
         fft(realPart, imagPart, FFT_SIZE);
 
-        // 1. Calculate Magnitudes and Stats
+        // Calculate Magnitudes and Stats
         float sumMag = 0, sumLogMag = 0, maxMag = 0, fluxVal = 0;
         int bins = FFT_SIZE / 2;
         
@@ -128,12 +134,12 @@ public class CrowdNoiseDetector implements AudioProcessor {
         float paprVal = maxMag / (avgMag + 1e-6f);
         float zcrVal = (float) zcCount / totalSamplesInFrame;
 
-        // 2. Multi-band Energy
+        // Multi-band Energy
         float lowE = computeBandEnergy(realPart, imagPart, 20, 120, sampleRate, FFT_SIZE);
         float midE = computeBandEnergy(realPart, imagPart, 120, 1800, sampleRate, FFT_SIZE);
         float highE = computeBandEnergy(realPart, imagPart, 1800, 8000, sampleRate, FFT_SIZE);
 
-        // 3. Smoothing and State Machine
+        // Smoothing and State Machine
         smoothSum -= smoothBuf[smoothIdx];
         smoothBuf[smoothIdx] = midE;
         smoothSum += midE;
@@ -142,6 +148,7 @@ public class CrowdNoiseDetector implements AudioProcessor {
 
         // --- FINAL SNAPSHOT FOR LAMBDA ---
         // We copy these to final variables so the lambda can "capture" them safely.
+        final float fRms = rms; 
         final float fAvgMid = avgMid;
         final float fFlatness = flatnessVal;
         final float fFlux = fluxVal;
@@ -154,7 +161,7 @@ public class CrowdNoiseDetector implements AudioProcessor {
 
         mainHandler.post(() -> {
             if (listener != null) {
-                listener.onStatsUpdate(fAvgMid, fFlatness, fFlux, fPapr, fZcr, fLowE, fMidE, fHighE, fThreshold);
+                listener.onStatsUpdate(fRms, fAvgMid, fFlatness, fFlux, fPapr, fZcr, fLowE, fMidE, fHighE, fThreshold);
             }
         });
 

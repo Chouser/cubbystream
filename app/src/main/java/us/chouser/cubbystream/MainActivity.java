@@ -750,8 +750,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onStatsUpdate(float energy, float flatness, float flux, float papr, 
-                            float zcr, float lowB, float midB, float highB, float threshold) {
+    public void onStatsUpdate(float totalVolume, float energy, float flatness, float flux, 
+                            float papr, float zcr, float lowB, float midB, float highB, float threshold) {
         
         // Throttling: only log roughly once per second (every 4th callback)
         if (++logFrameCount >= 4) {
@@ -759,8 +759,8 @@ public class MainActivity extends AppCompatActivity
             
             boolean detectorInAds = service != null && service.detectorIsInCommercial();
             
-            // Pass the full spectral signature to the logger
             logger.log(
+                totalVolume,
                 energy,      // This is the smoothed mid-band energy
                 flatness, 
                 flux, 
@@ -776,7 +776,7 @@ public class MainActivity extends AppCompatActivity
             );
         }
 
-        // UI Updates (remains on the Main Thread)
+        // UI Updates continue to use 'energy' for the progress bar
         runOnUiThread(() -> {
             textEnergyLevel.setText(String.format(Locale.US, "Level: %.1f", energy));
             textThreshold.setText(String.format(Locale.US, "Thr: %.1f", threshold));

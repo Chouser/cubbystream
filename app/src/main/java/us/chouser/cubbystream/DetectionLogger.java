@@ -15,9 +15,8 @@ import java.util.concurrent.Executors;
 public class DetectionLogger {
     private static final String TAG = "DetectionLogger";
 
-    // Expanded header for detailed analysis
     private static final String CSV_HEADER =
-            "timestamp_ms,energy,flatness,flux,papr,zcr,low_band,mid_band,high_band," +
+            "timestamp_ms,total_volume,energy,flatness,flux,papr,zcr,low_band,mid_band,high_band," +
             "threshold,detector_state,volume_mode,stream_title\n";
 
     private final ExecutorService writer = Executors.newSingleThreadExecutor();
@@ -44,16 +43,16 @@ public class DetectionLogger {
         });
     }
 
-    public void log(float energy, float flatness, float flux, float papr, float zcr,
+    public void log(float totalVolume, float energy, float flatness, float flux, float papr, float zcr,
                     float lowBand, float midBand, float highBand,
                     float threshold, boolean detectorInAds, String volumeMode, String streamTitle) {
         if (!open) return;
         long now = System.currentTimeMillis();
         String safeTitle = "\"" + streamTitle.replace("\"", "\"\"") + "\"";
-        
+
         String row = String.format(Locale.US, 
-            "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s\n",
-            now, energy, flatness, flux, papr, zcr, lowBand, midBand, highBand,
+            "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s\n",
+            now, totalVolume, energy, flatness, flux, papr, zcr, lowBand, midBand, highBand,
             threshold, (detectorInAds ? "ads" : "game"), volumeMode, safeTitle);
 
         writer.execute(() -> {
