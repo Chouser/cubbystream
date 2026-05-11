@@ -33,15 +33,16 @@
             <Spinner
                 android:id="@+id/spinner_stream"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp" />
+                android:layout_height="48dp"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1" />
 
             <ImageButton
                 android:id="@+id/btn_settings"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Settings"
                 android:src="@android:drawable/ic_menu_preferences"
                 app:tint="@color/text_secondary" />
 
@@ -211,15 +212,15 @@
 
                 <Button
                     android:id="@+id/btn_skip_to_live"
+                    style="@style/Widget.MaterialComponents.Button"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:text="▶▶ Live"
-                    android:textSize="15sp"
+                    android:layout_height="48dp"
+                    android:backgroundTint="@color/btn_live_color"
                     android:nextFocusUp="@id/btn_play"
                     android:nextFocusDown="@id/btn_pause"
-                    android:backgroundTint="@color/btn_live_color"
+                    android:text="▶▶ Live"
                     android:textColor="@color/text_on_accent"
-                    style="@style/Widget.MaterialComponents.Button"/>
+                    android:textSize="15sp" />
 
             </LinearLayout>
 
@@ -233,10 +234,10 @@
                 <Button
                     android:id="@+id/btn_pause"
                     android:layout_width="0dp"
-                    android:layout_height="52dp"
+                    android:layout_height="60dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
-                    android:text="⏸  Pause"
+                    android:text="⏸\nPause"
                     android:textSize="15sp"
                     android:textStyle="bold"
                     android:enabled="false"
@@ -250,10 +251,10 @@
                 <Button
                     android:id="@+id/btn_resume"
                     android:layout_width="0dp"
-                    android:layout_height="52dp"
+                    android:layout_height="60dp"
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
-                    android:text="▶  Resume"
+                    android:text="▶\nResume"
                     android:textSize="15sp"
                     android:textStyle="bold"
                     android:nextFocusUp="@id/btn_skip_to_live"
@@ -284,47 +285,47 @@
 
                 <Button
                     android:id="@+id/btn_mode_game"
+                    style="@style/Widget.MaterialComponents.Button"
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_weight="1"
+                    android:layout_height="48dp"
                     android:layout_marginEnd="4dp"
-                    android:text="🔊 Game"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_on_accent"
-                    android:nextFocusUp="@id/btn_pause"
-                    android:nextFocusRight="@id/btn_mode_ads"
+                    android:layout_weight="1"
                     android:backgroundTint="@color/btn_inactive"
-                    style="@style/Widget.MaterialComponents.Button"/>
+                    android:nextFocusRight="@id/btn_mode_ads"
+                    android:nextFocusUp="@id/btn_pause"
+                    android:text="🔊 Game"
+                    android:textColor="@color/text_on_accent"
+                    android:textSize="12sp" />
 
                 <Button
                     android:id="@+id/btn_mode_ads"
+                    style="@style/Widget.MaterialComponents.Button"
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_weight="1"
+                    android:layout_height="48dp"
                     android:layout_marginStart="4dp"
                     android:layout_marginEnd="4dp"
-                    android:text="🔇 Ads"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_on_accent"
-                    android:nextFocusUp="@id/btn_pause"
+                    android:layout_weight="1"
+                    android:backgroundTint="@color/btn_inactive"
                     android:nextFocusLeft="@id/btn_mode_game"
                     android:nextFocusRight="@id/btn_mode_auto"
-                    android:backgroundTint="@color/btn_inactive"
-                    style="@style/Widget.MaterialComponents.Button"/>
+                    android:nextFocusUp="@id/btn_pause"
+                    android:text="🔇 Ads"
+                    android:textColor="@color/text_on_accent"
+                    android:textSize="12sp" />
 
                 <Button
                     android:id="@+id/btn_mode_auto"
+                    style="@style/Widget.MaterialComponents.Button"
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_weight="1"
+                    android:layout_height="48dp"
                     android:layout_marginStart="4dp"
-                    android:text="🤖 Auto"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_on_accent"
-                    android:nextFocusUp="@id/btn_resume"
-                    android:nextFocusLeft="@id/btn_mode_ads"
+                    android:layout_weight="1"
                     android:backgroundTint="@color/btn_inactive"
-                    style="@style/Widget.MaterialComponents.Button"/>
+                    android:nextFocusLeft="@id/btn_mode_ads"
+                    android:nextFocusUp="@id/btn_resume"
+                    android:text="🤖 Auto"
+                    android:textColor="@color/text_on_accent"
+                    android:textSize="12sp" />
 
             </LinearLayout>
 
@@ -338,87 +339,90 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="2">
-
-    <LinearLayout
-        android:id="@+id/layout_scoreboard"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:layout_weight="1.8">
 
         <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:id="@+id/layout_scoreboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="@+id/layout_baseball_field"
+            app:layout_constraintStart_toStartOf="@+id/layout_baseball_field"
+            app:layout_constraintTop_toTopOf="parent">
 
-            <ImageView
-                android:id="@+id/img_away_logo"
-                android:layout_width="50dp"
-                android:layout_height="50dp" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/img_away_logo"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp" />
+
+                <TextView
+                    android:id="@+id/text_away_abbr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="CHC"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="9sp" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/text_away_abbr"
+                android:id="@+id/text_away_score"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="CHC"
+                android:layout_marginLeft="12dp"
+                android:layout_marginRight="20dp"
+                android:text="7"
                 android:textColor="@color/text_secondary"
-                android:textSize="9sp" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/text_away_score"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="12dp"
-            android:layout_marginRight="20dp"
-            android:text="7"
-            android:textColor="@color/text_secondary"
-            android:textSize="48sp" />
-
-        <TextView
-            android:id="@+id/text_count_outs"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="▲9\nouts: ●●●\n3-2"
-            android:gravity="center"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/text_home_score"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="20dp"
-            android:layout_marginRight="12dp"
-            android:text="1"
-            android:textColor="@color/text_secondary"
-            android:textSize="48sp" />
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <ImageView
-                android:id="@+id/img_home_logo"
-                android:layout_width="50dp"
-                android:layout_height="50dp" />
+                android:textSize="48sp" />
 
             <TextView
-                android:id="@+id/text_home_abbr"
+                android:id="@+id/text_count_outs"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="TEX"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="▲9\nouts: ●●●\n3-2"
                 android:textColor="@color/text_secondary"
-                android:textSize="9sp" />
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/text_home_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="12dp"
+                android:text="1"
+                android:textColor="@color/text_secondary"
+                android:textSize="48sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/img_home_logo"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp" />
+
+                <TextView
+                    android:id="@+id/text_home_abbr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="TEX"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="9sp" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
 
     <!-- ===================================================================== -->
     <!-- Diamond -->
@@ -431,17 +435,19 @@
             android:layout_weight="1"
             android:padding="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/layout_scoreboard">
 
             <ImageView
                 android:id="@+id/image_baseball_diamond"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginBottom="24dp"
+                android:adjustViewBounds="true"
                 android:scaleType="fitCenter"
                 android:src="@drawable/bg_baseball_field"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintDimensionRatio="1:1"
+                app:layout_constraintDimensionRatio="200:175"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -490,10 +496,10 @@
                 app:layout_constraintBottom_toBottomOf="@+id/image_baseball_diamond"
                 app:layout_constraintDimensionRatio="1:1"
                 app:layout_constraintEnd_toEndOf="@+id/image_baseball_diamond"
-                app:layout_constraintHorizontal_bias="0.83"
+                app:layout_constraintHorizontal_bias="0.84"
                 app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
                 app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
-                app:layout_constraintVertical_bias="0.47"
+                app:layout_constraintVertical_bias="0.55"
                 app:layout_constraintWidth_percent="0.06" />
 
             <ImageView
@@ -504,10 +510,10 @@
                 app:layout_constraintBottom_toBottomOf="@+id/image_baseball_diamond"
                 app:layout_constraintDimensionRatio="1:1"
                 app:layout_constraintEnd_toEndOf="@+id/image_baseball_diamond"
-                app:layout_constraintHorizontal_bias="0.17"
+                app:layout_constraintHorizontal_bias="0.16"
                 app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
                 app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
-                app:layout_constraintVertical_bias="0.47"
+                app:layout_constraintVertical_bias="0.55"
                 app:layout_constraintWidth_percent="0.06" />
 
             <ImageView
@@ -521,7 +527,7 @@
                 app:layout_constraintHorizontal_bias="0.5"
                 app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
                 app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
-                app:layout_constraintVertical_bias="0.17"
+                app:layout_constraintVertical_bias="0.19"
                 app:layout_constraintWidth_percent="0.06" />
 
             <TextView
@@ -546,7 +552,7 @@
                 app:layout_constraintHorizontal_bias="0.5"
                 app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
                 app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
-                app:layout_constraintVertical_bias="0.47" />
+                app:layout_constraintVertical_bias="0.55" />
 
             <TextView
                 android:id="@+id/text_batter_name"
@@ -570,12 +576,12 @@
                 app:layout_constraintHorizontal_bias="0.5"
                 app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
                 app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
-                app:layout_constraintVertical_bias="0.8" />
+                app:layout_constraintVertical_bias="0.94" />
 
             <TextView
                 android:id="@+id/btn_gameday_data"
-                android:layout_width="44dp"
-                android:layout_height="99dp"
+                android:layout_width="48dp"
+                android:layout_height="100dp"
                 android:layout_marginStart="12dp"
                 android:layout_marginBottom="12dp"
                 android:clickable="true"
