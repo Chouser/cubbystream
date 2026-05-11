@@ -30,10 +30,22 @@ public class GamedayController {
     private static final long MAX_HISTORY_MS = 120_000L; // see SettingsSheet.DELAY_MAX
 
     private Listener listener;
+    private GameState lastDeliveredState = null;
+    private String    lastNoGameReason   = null;
 
-    /** Re-attach a listener without restarting polling (used after orientation change). */
+    /**
+     * Re-attach a listener without restarting polling (used after orientation change).
+     * Immediately re-delivers the last known result so the new activity instance
+     * can restore its UI without waiting for the next poll.
+     */
     public void setListener(Listener listener) {
         this.listener = listener;
+        if (listener == null) return;
+        if (lastDeliveredState != null) {
+            listener.onGameStateApplied(lastDeliveredState);
+        } else if (lastNoGameReason != null) {
+            listener.onNoGame(lastNoGameReason);
+        }
     }
     private long     baseDelayMs  = 20_000L; // configurable; default 20s
     private long     extraDelayMs = 0L;
@@ -57,7 +69,11 @@ public class GamedayController {
 
         apiClient.start(teamId, pollIntervalSec, new MlbApiClient.Listener() {
             @Override public void onGameState(GameState state) { enqueue(state); }
-            @Override public void onNoGame(String reason)      { if (listener != null) listener.onNoGame(reason); }
+            @Override public void onNoGame(String reason) {
+                lastNoGameReason   = reason;
+                lastDeliveredState = null;
+                if (listener != null) listener.onNoGame(reason);
+            }
             @Override public void onError(String message)      { if (listener != null) listener.onError(message); }
         });
 
@@ -68,7 +84,9 @@ public class GamedayController {
         apiClient.stop();
         stopTicking();
         history.clear();
-        listener = null;
+        lastDeliveredState = null;
+        lastNoGameReason   = null;
+        listener           = null;
     }
 
     // =========================================================================
@@ -199,9 +217,10 @@ public class GamedayController {
         long currentPause = (pauseStartMs >= 0) ? (now - pauseStartMs) : 0L;
         long targetTime = now - (baseDelayMs + extraDelayMs + currentPause);
 
-        // Find the frame closest to targetTime without going over
         GameState bestMatch = findBestFrame(targetTime);
         if (bestMatch != null) {
+            lastDeliveredState = bestMatch;
+            lastNoGameReason   = null;
             listener.onGameStateApplied(bestMatch);
         }
     }
