@@ -84,8 +84,7 @@
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
         android:layout_marginTop="1dp"
-        android:elevation="2dp"
-        android:visibility="gone">
+        android:elevation="2dp" >
 
         <!-- hide the player text for now; the spinner is sufficient -->
         <TextView
@@ -443,32 +442,7 @@
         android:paddingBottom="20dp"
         android:elevation="4dp">
 
-        <!-- Skip to Live row -->
-        <LinearLayout
-            android:id="@+id/layout_seek_row"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="10dp"
-            android:gravity="center"
-            android:visibility="visible">
-
-            <Button
-                android:id="@+id/btn_skip_to_live"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_weight="1"
-                android:text="▶▶ Live"
-                android:textSize="16sp"
-                android:nextFocusUp="@id/btn_play"
-                android:nextFocusDown="@id/btn_pause"
-                android:backgroundTint="@color/btn_live_color"
-                android:textColor="@color/text_on_accent"
-                style="@style/Widget.MaterialComponents.Button"/>
-
-        </LinearLayout>
-
-        <!-- Pause | Play -->
+        <!-- Live | Pause | Play -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -476,11 +450,23 @@
             android:layout_marginBottom="12dp">
 
             <Button
+                android:id="@+id/btn_skip_to_live"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_live_color"
+                android:nextFocusUp="@id/btn_play"
+                android:nextFocusDown="@id/btn_pause"
+                android:text="▶▶ Live"
+                android:textColor="@color/text_on_accent"
+                android:textSize="16sp" />
+
+            <Button
                 android:id="@+id/btn_pause"
                 android:layout_width="0dp"
                 android:layout_height="64dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
                 android:text="⏸  Pause"
                 android:textSize="17sp"
                 android:textStyle="bold"
@@ -497,7 +483,6 @@
                 android:layout_width="0dp"
                 android:layout_height="64dp"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
                 android:text="▶  Resume"
                 android:textSize="17sp"
                 android:textStyle="bold"

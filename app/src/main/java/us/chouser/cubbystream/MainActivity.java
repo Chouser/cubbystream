@@ -561,7 +561,12 @@ public class MainActivity extends AppCompatActivity
         // Repurpose textCountOuts as the placeholder (it's in the same area)
         textCountOuts.setText(message);
         //layoutBaseballField.setVisibility(View.GONE);
-        // Reset base icons
+
+        // Reset scoreboard and field data
+        textAwayAbbr.setText("");
+        textHomeAbbr.setText("");
+        textAwayScore.setText("");
+        textHomeScore.setText("");
         base1.setImageResource(R.drawable.base_diamond_empty);
         base2.setImageResource(R.drawable.base_diamond_empty);
         base3.setImageResource(R.drawable.base_diamond_empty);
@@ -570,6 +575,7 @@ public class MainActivity extends AppCompatActivity
         textBase3.setText("");
         textPitcherName.setText("");
         textBatterName.setText("");
+        // TODO: clear logos on scoreboard and field.
     }
 
     // =========================================================================

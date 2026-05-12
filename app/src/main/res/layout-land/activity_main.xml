@@ -48,6 +48,44 @@
 
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_play"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_play_color"
+                android:enabled="false"
+                android:nextFocusRight="@id/btn_stop"
+                android:nextFocusDown="@id/btn_skip_to_live"
+                android:text="▶ Play"
+                android:textColor="@color/text_on_accent"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/btn_stop"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_stop_color"
+                android:enabled="false"
+                android:nextFocusLeft="@id/btn_play"
+                android:nextFocusDown="@id/btn_skip_to_live"
+                android:text="■ Stop"
+                android:textColor="@color/text_on_accent"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
         <!-- Status / error text -->
         <TextView
             android:id="@+id/text_status"
@@ -64,74 +102,73 @@
             android:id="@+id/layout_info_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@color/header_bg"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
             android:layout_marginTop="1dp"
-            android:visibility="gone">
+            android:background="@color/header_bg"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp" >
 
             <TextView
-                android:visibility="gone"
                 android:id="@+id/text_player_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary"
+                android:layout_marginBottom="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:layout_marginBottom="2dp"/>
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
 
             <TextView
-                android:visibility="gone"
                 android:id="@+id/text_player_subtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:layout_marginBottom="6dp"
                 android:textColor="@color/text_secondary"
-                android:layout_marginBottom="6dp"/>
+                android:textSize="12sp"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:layout_marginBottom="4dp"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="4dp">
+                android:orientation="horizontal">
 
                 <TextView
                     android:id="@+id/text_energy_level"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Level: —"
-                    android:textSize="10sp"
                     android:fontFamily="monospace"
-                    android:textColor="@color/text_secondary"/>
+                    android:text="Level: —"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10sp" />
 
                 <TextView
                     android:id="@+id/text_mode_indicator"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Auto: Game"
-                    android:textSize="10sp"
                     android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="Auto: Game"
                     android:textColor="@color/text_secondary"
-                    android:gravity="center"/>
+                    android:textSize="10sp" />
 
                 <TextView
                     android:id="@+id/text_threshold"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Thr: —"
-                    android:textSize="10sp"
                     android:fontFamily="monospace"
+                    android:gravity="end"
+                    android:text="Thr: —"
                     android:textColor="@color/text_secondary"
-                    android:gravity="end"/>
+                    android:textSize="10sp" />
 
             </LinearLayout>
 
@@ -140,9 +177,9 @@
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
                 android:layout_height="8dp"
+                android:layout_marginBottom="4dp"
                 android:max="100"
-                android:progress="0"
-                android:layout_marginBottom="4dp"/>
+                android:progress="0" />
 
         </LinearLayout>
 
@@ -152,184 +189,132 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- Controls block -->
+        <LinearLayout
+            android:id="@+id/layout_seek_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="visible">
+
+            <Button
+                android:id="@+id/btn_skip_to_live"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:backgroundTint="@color/btn_live_color"
+                android:nextFocusUp="@id/btn_play"
+                android:nextFocusDown="@id/btn_pause"
+                android:text="▶▶ Live"
+                android:textColor="@color/text_on_accent"
+                android:textSize="15sp" />
+
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="12dp">
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
 
-            <!-- Play | Stop -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
+            <Button
+                android:id="@+id/btn_pause"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_pause_color"
+                android:enabled="false"
+                android:nextFocusRight="@id/btn_resume"
+                android:nextFocusUp="@id/btn_skip_to_live"
+                android:nextFocusDown="@id/btn_mode_game"
+                android:text="⏸ Pause"
+                android:textColor="@color/text_on_accent"
+                android:textSize="15sp"
+                android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/btn_play"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    android:text="▶ Play"
-                    android:textSize="14sp"
-                    android:enabled="false"
-                    android:nextFocusRight="@id/btn_stop"
-                    android:nextFocusDown="@id/btn_skip_to_live"
-                    android:backgroundTint="@color/btn_play_color"
-                    android:textColor="@color/text_on_accent"
-                    style="@style/Widget.MaterialComponents.Button" />
-
-                <Button
-                    android:id="@+id/btn_stop"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="6dp"
-                    android:text="■ Stop"
-                    android:textSize="14sp"
-                    android:enabled="false"
-                    android:nextFocusLeft="@id/btn_play"
-                    android:nextFocusDown="@id/btn_skip_to_live"
-                    android:backgroundTint="@color/btn_stop_color"
-                    android:textColor="@color/text_on_accent"
-                    style="@style/Widget.MaterialComponents.Button" />
-
-            </LinearLayout>
-
-            <!-- Skip to Live -->
-            <LinearLayout
-                android:id="@+id/layout_seek_row"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp"
-                android:gravity="center"
-                android:visibility="visible">
-
-                <Button
-                    android:id="@+id/btn_skip_to_live"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:backgroundTint="@color/btn_live_color"
-                    android:nextFocusUp="@id/btn_play"
-                    android:nextFocusDown="@id/btn_pause"
-                    android:text="▶▶ Live"
-                    android:textColor="@color/text_on_accent"
-                    android:textSize="15sp" />
-
-            </LinearLayout>
-
-            <!-- Pause | Resume -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="10dp">
-
-                <Button
-                    android:id="@+id/btn_pause"
-                    android:layout_width="0dp"
-                    android:layout_height="60dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    android:text="⏸\nPause"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:enabled="false"
-                    android:nextFocusUp="@id/btn_skip_to_live"
-                    android:nextFocusRight="@id/btn_resume"
-                    android:nextFocusDown="@id/btn_mode_game"
-                    android:backgroundTint="@color/btn_pause_color"
-                    android:textColor="@color/text_on_accent"
-                    style="@style/Widget.MaterialComponents.Button"/>
-
-                <Button
-                    android:id="@+id/btn_resume"
-                    android:layout_width="0dp"
-                    android:layout_height="60dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="6dp"
-                    android:text="▶\nResume"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:nextFocusUp="@id/btn_skip_to_live"
-                    android:nextFocusLeft="@id/btn_pause"
-                    android:nextFocusDown="@id/btn_mode_auto"
-                    android:backgroundTint="@color/btn_play_color"
-                    android:textColor="@color/text_on_accent"
-                    style="@style/Widget.MaterialComponents.Button"/>
-
-            </LinearLayout>
-
-            <!-- Volume mode label -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="VOLUME MODE"
-                android:textSize="9sp"
-                android:textColor="@color/text_secondary"
-                android:letterSpacing="0.15"
-                android:gravity="center"
-                android:layout_marginBottom="5dp"/>
-
-            <!-- Game | Ads | Auto -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btn_mode_game"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="@color/btn_inactive"
-                    android:nextFocusRight="@id/btn_mode_ads"
-                    android:nextFocusUp="@id/btn_pause"
-                    android:text="🔊 Game"
-                    android:textColor="@color/text_on_accent"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/btn_mode_ads"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="@color/btn_inactive"
-                    android:nextFocusLeft="@id/btn_mode_game"
-                    android:nextFocusRight="@id/btn_mode_auto"
-                    android:nextFocusUp="@id/btn_pause"
-                    android:text="🔇 Ads"
-                    android:textColor="@color/text_on_accent"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/btn_mode_auto"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="@color/btn_inactive"
-                    android:nextFocusLeft="@id/btn_mode_ads"
-                    android:nextFocusUp="@id/btn_resume"
-                    android:text="🤖 Auto"
-                    android:textColor="@color/text_on_accent"
-                    android:textSize="12sp" />
-
-            </LinearLayout>
+            <Button
+                android:id="@+id/btn_resume"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_play_color"
+                android:nextFocusLeft="@id/btn_pause"
+                android:nextFocusUp="@id/btn_skip_to_live"
+                android:nextFocusDown="@id/btn_mode_auto"
+                android:text="▶ Resume"
+                android:textColor="@color/text_on_accent"
+                android:textSize="15sp"
+                android:textStyle="bold" />
 
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="5dp"
+            android:gravity="center"
+            android:letterSpacing="0.15"
+            android:text="VOLUME MODE"
+            android:textColor="@color/text_secondary"
+            android:textSize="9sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_mode_game"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_inactive"
+                android:nextFocusRight="@id/btn_mode_ads"
+                android:nextFocusUp="@id/btn_pause"
+                android:text="🔊 Game"
+                android:textColor="@color/text_on_accent"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_mode_ads"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_inactive"
+                android:nextFocusLeft="@id/btn_mode_game"
+                android:nextFocusRight="@id/btn_mode_auto"
+                android:nextFocusUp="@id/btn_pause"
+                android:text="🔇 Ads"
+                android:textColor="@color/text_on_accent"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_mode_auto"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/btn_inactive"
+                android:nextFocusLeft="@id/btn_mode_ads"
+                android:nextFocusUp="@id/btn_resume"
+                android:text="🤖 Auto"
+                android:textColor="@color/text_on_accent"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+        <!-- Controls block -->
 
     </LinearLayout>
 
@@ -339,7 +324,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1.8">
+        android:layout_weight="1.5">
 
         <LinearLayout
             android:id="@+id/layout_scoreboard"
