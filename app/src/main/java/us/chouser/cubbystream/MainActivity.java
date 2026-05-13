@@ -69,8 +69,6 @@ public class MainActivity extends AppCompatActivity
     private Button       btnPlay;
     private TextView     textStatus;
     private LinearLayout layoutInfoPanel;
-    private TextView     textPlayerTitle;
-    private TextView     textPlayerSubtitle;
     private TextView     textEnergyLevel;
     private TextView     textModeIndicator;
     private TextView     textThreshold;
@@ -318,8 +316,6 @@ public class MainActivity extends AppCompatActivity
         btnPlay            = findViewById(R.id.btn_play);
         textStatus         = findViewById(R.id.text_status);
         layoutInfoPanel    = findViewById(R.id.layout_info_panel);
-        textPlayerTitle    = findViewById(R.id.text_player_title);
-        textPlayerSubtitle = findViewById(R.id.text_player_subtitle);
         textEnergyLevel    = findViewById(R.id.text_energy_level);
         textModeIndicator  = findViewById(R.id.text_mode_indicator);
         textThreshold      = findViewById(R.id.text_threshold);
@@ -531,8 +527,6 @@ public class MainActivity extends AppCompatActivity
         currentTitle = item.getTitle();
         service.playStream(item.getUrl(), item.getTitle(), item.getType());
         logger.open(this, currentTitle);
-        textPlayerTitle.setText(item.getTitle());
-        textPlayerSubtitle.setText(item.getSubtitle());
         layoutInfoPanel.setVisibility(View.VISIBLE);
 
         // Gameday is already polling from startGamedayForSelected(); just reset
