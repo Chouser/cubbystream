@@ -547,7 +547,7 @@ public class MainActivity extends AppCompatActivity
         if (bound && service != null) service.stopStream();
         vm.playState = MainViewModel.PlayState.STOPPED;
         updatePlaybackUi();
-        layoutInfoPanel.setVisibility(View.GONE);
+        layoutInfoPanel.setVisibility(View.INVISIBLE);
         // Keep gameday polling but snap to live since there's no longer an audio offset
         vm.gameday.onLive();
     }

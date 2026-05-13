@@ -84,29 +84,8 @@
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
         android:layout_marginTop="1dp"
-        android:elevation="2dp" >
-
-        <!-- hide the player text for now; the spinner is sufficient -->
-        <TextView
-            android:visibility="gone"
-            android:id="@+id/text_player_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:layout_marginBottom="2dp"/>
-
-        <TextView
-            android:visibility="gone"
-            android:id="@+id/text_player_subtitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textColor="@color/text_secondary"
-            android:layout_marginBottom="10dp"/>
+        android:elevation="2dp"
+        android:visibility="invisible">
 
         <!-- Energy row: Level | Mode | Threshold -->
         <LinearLayout
@@ -164,6 +143,7 @@
     <!-- ===================================================================== -->
     <!-- Scoreboard -->
     <!-- ===================================================================== -->
+
     <LinearLayout
         android:id="@+id/layout_scoreboard"
         android:layout_width="match_parent"
@@ -207,8 +187,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="▲9\nouts: ●●●\n3-2"
             android:gravity="center"
+            android:text="▲9\nouts: ●●●\n3-2"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
@@ -247,12 +227,16 @@
     <!-- ===================================================================== -->
     <!-- Diamond -->
     <!-- ===================================================================== -->
+    <View
+        android:id="@+id/spacer1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_baseball_field"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:padding="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -396,7 +380,7 @@
             app:layout_constraintHorizontal_bias="0.5"
             app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond"
             app:layout_constraintTop_toTopOf="@+id/image_baseball_diamond"
-            app:layout_constraintVertical_bias="0.94" />
+            app:layout_constraintVertical_bias="0.937" />
 
         <TextView
             android:id="@+id/btn_gameday_data"
@@ -429,8 +413,14 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
     <!-- ===================================================================== -->
-    <!-- BOTTOM BAR (identical layout to original activity_player.xml)         -->
+    <!-- BOTTOM BAR                                                            -->
     <!-- ===================================================================== -->
+    <View
+        android:id="@+id/spacer2"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -453,7 +443,7 @@
                 android:id="@+id/btn_skip_to_live"
                 style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:backgroundTint="@color/btn_live_color"
                 android:nextFocusUp="@id/btn_play"
@@ -464,34 +454,34 @@
 
             <Button
                 android:id="@+id/btn_pause"
+                style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="⏸  Pause"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:enabled="false"
-                android:nextFocusUp="@id/btn_skip_to_live"
-                android:nextFocusRight="@id/btn_resume"
-                android:nextFocusDown="@id/btn_mode_game"
                 android:backgroundTint="@color/btn_pause_color"
+                android:enabled="false"
+                android:nextFocusRight="@id/btn_resume"
+                android:nextFocusUp="@id/btn_skip_to_live"
+                android:nextFocusDown="@id/btn_mode_game"
+                android:text="⏸  Pause"
                 android:textColor="@color/text_on_accent"
-                style="@style/Widget.MaterialComponents.Button"/>
+                android:textSize="17sp"
+                android:textStyle="bold" />
 
             <Button
                 android:id="@+id/btn_resume"
+                style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="▶  Resume"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:nextFocusUp="@id/btn_stop"
-                android:nextFocusLeft="@id/btn_pause"
-                android:nextFocusDown="@id/btn_mode_auto"
                 android:backgroundTint="@color/btn_play_color"
+                android:nextFocusLeft="@id/btn_pause"
+                android:nextFocusUp="@id/btn_stop"
+                android:nextFocusDown="@id/btn_mode_auto"
+                android:text="▶  Resume"
                 android:textColor="@color/text_on_accent"
-                style="@style/Widget.MaterialComponents.Button"/>
+                android:textSize="17sp"
+                android:textStyle="bold" />
 
         </LinearLayout>
 
