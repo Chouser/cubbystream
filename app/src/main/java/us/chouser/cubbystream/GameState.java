@@ -36,7 +36,7 @@ public class GameState {
     // Players
     public final String batterName;
     public final String pitcherName;
-    public final int    pitcherPitchesThrown; // -1 = unknown
+    public final int    pitcherPitchesThrown;
 
     // Game identity — used to build the Gameday URL
     public final long   gamePk;

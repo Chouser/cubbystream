@@ -53,7 +53,7 @@ public class PlaybackService extends LifecycleService {
     private PlaybackListener   playbackListener;
     private CrowdNoiseDetector crowdNoiseDetector;
 
-    private String  currentTitle      = "Baseball Stream";
+    private String  currentTitle      = "Cubby Stream";
     private boolean isCommercialVolume = false;
 
     // -------------------------------------------------------------------------
@@ -201,7 +201,7 @@ public class PlaybackService extends LifecycleService {
         if (crowdNoiseDetector != null) crowdNoiseDetector.resetCounters();
     }
 
-    /** Current smoothed energy reading — used to initialise the UI meter on bind. */
+    /** Current smoothed energy reading — used to initialize the UI meter on bind. */
     public boolean detectorIsInCommercial() {
         return crowdNoiseDetector != null && crowdNoiseDetector.isInCommercial();
     }
@@ -215,8 +215,8 @@ public class PlaybackService extends LifecycleService {
     private void createNotificationChannel() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "Baseball Stream", NotificationManager.IMPORTANCE_LOW);
-            ch.setDescription("Baseball audio stream controls");
+                    CHANNEL_ID, "Cubby Stream", NotificationManager.IMPORTANCE_LOW);
+            ch.setDescription("Audio stream controls");
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) nm.createNotificationChannel(ch);
         }
