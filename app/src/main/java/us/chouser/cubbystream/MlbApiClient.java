@@ -9,6 +9,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.Executors;
@@ -42,7 +43,7 @@ public class MlbApiClient {
         /** Called on the main thread each time a new GameState is fetched. */
         void onGameState(GameState state);
         /** Called on the main thread when no game is found for today. */
-        void onNoGame(String reason);
+        void onNoGame(String reason, String gamedayUrl);
         /** Called on the main thread on fetch/parse errors (non-fatal; polling continues). */
         void onError(String message);
     }
@@ -140,14 +141,14 @@ public class MlbApiClient {
             JSONObject root  = new JSONObject(body);
             JSONArray  dates = root.optJSONArray("dates");
             if (dates == null || dates.length() == 0) {
-                deliver(() -> listener.onNoGame("No game scheduled today."));
+                findNextGame();
                 return;
             }
 
             JSONObject dateObj = dates.getJSONObject(0);
             JSONArray  games   = dateObj.optJSONArray("games");
             if (games == null || games.length() == 0) {
-                deliver(() -> listener.onNoGame("No game scheduled today."));
+                findNextGame();
                 return;
             }
 
@@ -172,6 +173,76 @@ public class MlbApiClient {
         } catch (Exception e) {
             Log.w(TAG, "findTodaysGame error: " + e.getMessage());
             deliver(() -> listener.onError("Schedule fetch failed: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Called when no game is scheduled today. Looks ahead up to 30 days for
+     * the next scheduled game and passes its Gameday URL to onNoGame so the
+     * Play by Play button can link to it. In the offseason (nothing in 30 days)
+     * delivers onNoGame with a null URL.
+     */
+    private void findNextGame() {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+            String startDate = sdf.format(cal.getTime());
+            cal.add(Calendar.DAY_OF_YEAR, 29); // 30 days total lookahead
+            String endDate = sdf.format(cal.getTime());
+
+            String url = BASE + "/api/v1/schedule?sportId=1&teamId=" + teamId
+                    + "&startDate=" + startDate
+                    + "&endDate="   + endDate
+                    + "&hydrate=team";
+
+            String body = get(url);
+            if (body == null) {
+                deliver(() -> listener.onNoGame("No game scheduled today.", null));
+                return;
+            }
+
+            JSONObject root  = new JSONObject(body);
+            JSONArray  dates = root.optJSONArray("dates");
+
+            if (dates == null || dates.length() == 0) {
+                // Offseason or no games in next 30 days
+                deliver(() -> listener.onNoGame("No game scheduled today.", null));
+                return;
+            }
+
+            // Find first date that has at least one game
+            for (int i = 0; i < dates.length(); i++) {
+                JSONObject dateObj = dates.getJSONObject(i);
+                JSONArray  games   = dateObj.optJSONArray("games");
+                if (games == null || games.length() == 0) continue;
+
+                JSONObject game       = games.getJSONObject(0);
+                long       nextGamePk = game.getLong("gamePk");
+                String     nextDate   = dateObj.optString("date", "");
+
+                JSONObject teams    = game.getJSONObject("teams");
+                JSONObject awayObj  = teams.getJSONObject("away").getJSONObject("team");
+                JSONObject homeObj  = teams.getJSONObject("home").getJSONObject("team");
+                String     nextAway = teamNameToSlug(awayObj.optString("name", ""));
+                String     nextHome = teamNameToSlug(homeObj.optString("name", ""));
+
+                String datePath = nextDate.replace("-", "/");
+                String nextUrl  = String.format(
+                        "https://www.mlb.com/gameday/%s-vs-%s/%s/%d/preview/summary/all",
+                        nextAway, nextHome, datePath, nextGamePk);
+
+                String msg = "Next game: " + nextDate;
+                deliver(() -> listener.onNoGame(msg, nextUrl));
+                return;
+            }
+
+            // Dates were present but all empty
+            deliver(() -> listener.onNoGame("No game scheduled today.", null));
+
+        } catch (Exception e) {
+            Log.w(TAG, "findNextGame error: " + e.getMessage());
+            deliver(() -> listener.onNoGame("No game scheduled today.", null));
         }
     }
 

@@ -164,6 +164,11 @@ public class MainActivity extends AppCompatActivity
 
         vm = new ViewModelProvider(this).get(MainViewModel.class);
 
+        // Detect TV first — bindViews uses isTv to hide TV-inappropriate widgets.
+        UiModeManager uiModeManager = (UiModeManager) getSystemService(UI_MODE_SERVICE);
+        isTv = uiModeManager != null &&
+               uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
+
         bindViews();
         setupClickListeners();
         requestNotificationPermission();
@@ -175,10 +180,6 @@ public class MainActivity extends AppCompatActivity
             vm.autoStartArmed = prefs.getAutoStartAudio();
             vm.autoStartInitialised = true;
         }
-
-        UiModeManager uiModeManager = (UiModeManager) getSystemService(UI_MODE_SERVICE);
-        isTv = uiModeManager != null &&
-               uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -203,6 +204,16 @@ public class MainActivity extends AppCompatActivity
             service.setPlaybackListener(this);
             service.setCrowdNoiseListener(this);
             syncWithService();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // On TV there's no background listening use case — stop cleanly when
+        // the user navigates away. On phone/tablet the stream continues.
+        if (isTv && vm.playState != MainViewModel.PlayState.STOPPED) {
+            stopStream();
         }
     }
 
@@ -346,6 +357,9 @@ public class MainActivity extends AppCompatActivity
         textPitcherName    = findViewById(R.id.text_pitcher_name);
         textBatterName     = findViewById(R.id.text_batter_name);
         btnGamedayData     = findViewById(R.id.btn_gameday_data);
+        if (isTv && btnGamedayData != null) {
+            btnGamedayData.setVisibility(View.GONE);
+        }
 
         // textNoGame shares the scoreboard slot — we create it dynamically
         // or we can reuse text_score_line area; simplest: use a tag on layout_scoreboard
@@ -635,7 +649,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onNoGame(String reason) {
+    public void onNoGame(String reason, String gamedayUrl) {
+        vm.currentGamedayUrl = gamedayUrl; // may be null in offseason
         showGamedayPlaceholder(reason);
     }
 

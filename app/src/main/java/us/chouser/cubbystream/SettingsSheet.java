@@ -21,6 +21,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
 import java.io.File;
@@ -81,6 +82,21 @@ public class SettingsSheet extends BottomSheetDialogFragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.sheet_settings, container, false);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Force the sheet to fully expand regardless of screen height / orientation.
+        // Without this it uses the default peek height (~50% screen), which is
+        // too short to be usable in landscape on phones or TV.
+        View sheet = getDialog().findViewById(
+                com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
+            BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(sheet);
+            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            behavior.setSkipCollapsed(true);
+        }
     }
 
     @Override

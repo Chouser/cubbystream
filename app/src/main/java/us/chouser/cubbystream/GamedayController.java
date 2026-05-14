@@ -20,7 +20,7 @@ public class GamedayController {
 
     public interface Listener {
         void onGameStateApplied(GameState state);
-        void onNoGame(String reason);
+        void onNoGame(String reason, String gamedayUrl);
         void onError(String message);
     }
 
@@ -32,6 +32,7 @@ public class GamedayController {
     private Listener listener;
     private GameState lastDeliveredState = null;
     private String    lastNoGameReason   = null;
+    private String    lastNoGameUrl      = null;
 
     /**
      * Re-attach a listener without restarting polling (used after orientation change).
@@ -44,7 +45,7 @@ public class GamedayController {
         if (lastDeliveredState != null) {
             listener.onGameStateApplied(lastDeliveredState);
         } else if (lastNoGameReason != null) {
-            listener.onNoGame(lastNoGameReason);
+            listener.onNoGame(lastNoGameReason, lastNoGameUrl);
         }
     }
     private long     baseDelayMs  = 20_000L; // configurable; default 20s
@@ -69,10 +70,11 @@ public class GamedayController {
 
         apiClient.start(teamId, pollIntervalSec, new MlbApiClient.Listener() {
             @Override public void onGameState(GameState state) { enqueue(state); }
-            @Override public void onNoGame(String reason) {
+            @Override public void onNoGame(String reason, String gamedayUrl) {
                 lastNoGameReason   = reason;
+                lastNoGameUrl      = gamedayUrl;
                 lastDeliveredState = null;
-                if (listener != null) listener.onNoGame(reason);
+                if (listener != null) listener.onNoGame(reason, gamedayUrl);
             }
             @Override public void onError(String message)      { if (listener != null) listener.onError(message); }
         });
@@ -86,6 +88,7 @@ public class GamedayController {
         history.clear();
         lastDeliveredState = null;
         lastNoGameReason   = null;
+        lastNoGameUrl      = null;
         listener           = null;
     }
 
