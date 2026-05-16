@@ -1,2 +1,9 @@
 app/build
 .gradle
+.calva
+.cpcache
+.nrepl-port
+.clj-kondo
+.idea
+.lsp
+
