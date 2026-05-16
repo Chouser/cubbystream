@@ -37,8 +37,9 @@ public class TeamLogoLoader {
      * Loads the logo for team into imageView.
      * Returns immediately; the ImageView is updated on the main thread when ready.
      */
-    public static void load(String teamAbbr, ImageView imageView) {
-        if (teamAbbr == null || teamAbbr.isEmpty() || imageView == null) return;
+    public static void load(String teamAbbr1, ImageView imageView) {
+        if (teamAbbr1 == null || teamAbbr1.isEmpty() || imageView == null) return;
+        final String teamAbbr = "CWS".equals(teamAbbr1) ? "chw" : teamAbbr1; // shrug
 
         // Tag the view so we can detect recycling
         imageView.setTag(teamAbbr);

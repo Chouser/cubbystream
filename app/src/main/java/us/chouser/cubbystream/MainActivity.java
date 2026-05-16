@@ -584,6 +584,11 @@ public class MainActivity extends AppCompatActivity
         textPitcherName.setText("");
         textBatterName.setText("");
         // TODO: clear logos on scoreboard and field.
+        // TODO: when no live game, hide the base diamonds. if the inning is also 0, replace with "no live game"
+        // TODO: should not compute teamNameToSlug, but follow the team.link,
+        // then get teams[0].teamName and lowercase _that_. Probably should use
+        // the teamName instead of abbreviation in the main activity display as well.
+        // TODO: settings panel on TV -- sliders don't get focus
     }
 
     // =========================================================================
