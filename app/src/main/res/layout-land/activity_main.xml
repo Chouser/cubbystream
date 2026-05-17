@@ -139,17 +139,6 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="10sp" />
 
-                <TextView
-                    android:id="@+id/text_threshold"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="monospace"
-                    android:gravity="end"
-                    android:text="Thr: —"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="10sp" />
-
             </LinearLayout>
 
             <ProgressBar

@@ -9,7 +9,9 @@ import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -40,7 +42,7 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity
         implements PlaybackService.PlaybackListener,
-                   CrowdNoiseDetector.Listener,
+                   AdDetector.Listener,
                    SettingsSheet.Listener,
                    GamedayController.Listener {
 
@@ -55,7 +57,6 @@ public class MainActivity extends AppCompatActivity
 
     // ---- Logging ----
     private final DetectionLogger logger = new DetectionLogger();
-    private int logFrameCount = 0;
 
     // Convenience accessors so call-sites don't change much
     private MainViewModel.PlayState playState() { return vm.playState; }
@@ -71,7 +72,6 @@ public class MainActivity extends AppCompatActivity
     private LinearLayout layoutInfoPanel;
     private TextView     textEnergyLevel;
     private TextView     textModeIndicator;
-    private TextView     textThreshold;
     private ProgressBar  progressEnergy;
     private Button       btnPause;
     private Button       btnResume;
@@ -79,6 +79,15 @@ public class MainActivity extends AppCompatActivity
     private Button       btnModeAds;
     private Button       btnModeAuto;
     private ImageButton  btnSettings;
+
+    // ---- UI polling ----
+    private final Handler uiPoller = new Handler(Looper.getMainLooper());
+    private final Runnable uiPollRunnable = new Runnable() {
+        @Override public void run() {
+            updateDetectorUi();
+            uiPoller.postDelayed(this, 250); // ~4 Hz
+        }
+    };
 
     // ---- Gameday views ----
     private ConstraintLayout layoutBaseballField;
@@ -117,7 +126,7 @@ public class MainActivity extends AppCompatActivity
         public void onServiceConnected(ComponentName name, IBinder binder) {
             service = ((PlaybackService.LocalBinder) binder).getService();
             service.setPlaybackListener(MainActivity.this);
-            service.setCrowdNoiseListener(MainActivity.this);
+            service.setDetectionListener(MainActivity.this);
             bound = true;
 
             if (service.isPlaying()) {
@@ -131,6 +140,7 @@ public class MainActivity extends AppCompatActivity
             applyVolumeMode(VolumeMode.AUTO);
 
             if (prefs != null) {
+                applyDetectionAlgorithm(prefs.getDetectionAlgorithm());
                 service.setThreshold(prefs.getThreshold());
                 service.setAdsVolumePct(prefs.getAdsVolumePct());
             }
@@ -202,16 +212,16 @@ public class MainActivity extends AppCompatActivity
         super.onResume();
         if (bound && service != null) {
             service.setPlaybackListener(this);
-            service.setCrowdNoiseListener(this);
+            service.setDetectionListener(this);
             syncWithService();
         }
+        uiPoller.post(uiPollRunnable);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        // On TV there's no background listening use case — stop cleanly when
-        // the user navigates away. On phone/tablet the stream continues.
+        uiPoller.removeCallbacks(uiPollRunnable);
         if (isTv && vm.playState != MainViewModel.PlayState.STOPPED) {
             stopStream();
         }
@@ -329,7 +339,6 @@ public class MainActivity extends AppCompatActivity
         layoutInfoPanel    = findViewById(R.id.layout_info_panel);
         textEnergyLevel    = findViewById(R.id.text_energy_level);
         textModeIndicator  = findViewById(R.id.text_mode_indicator);
-        textThreshold      = findViewById(R.id.text_threshold);
         progressEnergy     = findViewById(R.id.progress_energy);
         btnPause           = findViewById(R.id.btn_pause);
         btnResume          = findViewById(R.id.btn_resume);
@@ -541,6 +550,8 @@ public class MainActivity extends AppCompatActivity
         currentTitle = item.getTitle();
         service.playStream(item.getUrl(), item.getTitle(), item.getType());
         logger.open(this, currentTitle);
+        logger.setVolumeMode(volumeMode.name().toLowerCase());
+        service.setLogger(logger);
         layoutInfoPanel.setVisibility(View.VISIBLE);
 
         // Gameday is already polling from startGamedayForSelected(); just reset
@@ -584,11 +595,6 @@ public class MainActivity extends AppCompatActivity
         textPitcherName.setText("");
         textBatterName.setText("");
         // TODO: clear logos on scoreboard and field.
-        // TODO: when no live game, hide the base diamonds. if the inning is also 0, replace with "no live game"
-        // TODO: should not compute teamNameToSlug, but follow the team.link,
-        // then get teams[0].teamName and lowercase _that_. Probably should use
-        // the teamName instead of abbreviation in the main activity display as well.
-        // TODO: settings panel on TV -- sliders don't get focus
     }
 
     // =========================================================================
@@ -685,6 +691,7 @@ public class MainActivity extends AppCompatActivity
 
     private void applyVolumeMode(VolumeMode mode) {
         volumeMode = mode;
+        logger.setVolumeMode(mode.name().toLowerCase());
         if (service != null) {
             switch (mode) {
                 case GAME:
@@ -715,16 +722,57 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void updateModeIndicatorLabel() {
+        AdDetector det = (service != null) ? service.getDetector() : null;
         String label;
         switch (volumeMode) {
             case GAME: label = "Manual: Game"; break;
             case ADS:  label = "Manual: Ads";  break;
             default:
-                boolean inAd = service != null && service.detectorIsInCommercial();
-                label = inAd ? "Auto: Ads" : "Auto: Game";
+                String name   = det != null ? det.getDisplayName() : "Auto";
+                boolean inAd  = det != null && det.isInCommercial();
+                String status = det != null ? det.getStatusText() : null;
+                label = name + ": " + (inAd ? "ads" : "game");
+                if (status != null) label += " — " + status;
                 break;
         }
         textModeIndicator.setText(label);
+    }
+
+    /** Polls the active detector for signal/threshold and updates the progress bar. */
+    private void updateDetectorUi() {
+        AdDetector det = (service != null) ? service.getDetector() : null;
+        updateModeIndicatorLabel();
+
+        if (det == null) {
+            progressEnergy.setVisibility(android.view.View.INVISIBLE);
+            textEnergyLevel.setText("");
+            return;
+        }
+
+        float signal    = det.getSignalLevel();
+        float threshold = det.getThreshold();
+
+        if (Float.isNaN(signal)) {
+            progressEnergy.setVisibility(android.view.View.INVISIBLE);
+            textEnergyLevel.setText("");
+            return;
+        }
+
+        progressEnergy.setVisibility(android.view.View.VISIBLE);
+
+        if (!Float.isNaN(threshold) && threshold > 0) {
+            int pct = (int) Math.min((signal / threshold) * 50f, 100);
+            progressEnergy.setProgress(pct);
+            int color = signal >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
+            progressEnergy.getProgressDrawable().setTint(color);
+            textEnergyLevel.setText(String.format(Locale.US, "%.0f / %.0f", signal, threshold));
+        } else {
+            // No threshold (e.g. NoOpDetector) — show signal as a simple 0–100 bar
+            int pct = (int) Math.min(signal, 100);
+            progressEnergy.setProgress(pct);
+            progressEnergy.getProgressDrawable().setTint(0xFF1565C0);
+            textEnergyLevel.setText(String.format(Locale.US, "%.0f", signal));
+        }
     }
 
     // =========================================================================
@@ -752,7 +800,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     // =========================================================================
-    // CrowdNoiseDetector.Listener
+    // AdDetector.Listener
     // =========================================================================
 
     @Override
@@ -769,55 +817,32 @@ public class MainActivity extends AppCompatActivity
         runOnUiThread(this::updateModeIndicatorLabel);
     }
 
-    @Override
-    public void onStatsUpdate(float totalVolume, float energy, float flatness, float flux, 
-                            float papr, float zcr, float lowB, float midB, float highB, float threshold) {
-        
-        // Throttling: only log roughly once per second (every 4th callback)
-        if (++logFrameCount >= 4) {
-            logFrameCount = 0;
-            
-            boolean detectorInAds = service != null && service.detectorIsInCommercial();
-            
-            logger.log(
-                totalVolume,
-                energy,      // This is the smoothed mid-band energy
-                flatness, 
-                flux, 
-                papr, 
-                zcr, 
-                lowB, 
-                midB, 
-                highB, 
-                threshold, 
-                detectorInAds,
-                volumeMode.name().toLowerCase(), 
-                currentTitle
-            );
-        }
-
-        // UI Updates continue to use 'energy' for the progress bar
-        runOnUiThread(() -> {
-            textEnergyLevel.setText(String.format(Locale.US, "Level: %.1f", energy));
-            textThreshold.setText(String.format(Locale.US, "Thr: %.1f", threshold));
-            
-            updateModeIndicatorLabel();
-
-            // Level meter visualization
-            int pct = (int) Math.min((energy / threshold) * 50f, 100);
-            progressEnergy.setProgress(pct);
-            
-            // Green if above threshold (Game), Red if below (Ads)
-            int color = energy >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
-            progressEnergy.getProgressDrawable().setTint(color);
-        });
-    }
-
     // =========================================================================
     // SettingsSheet.Listener
     // =========================================================================
 
-    @Override public void onFeedUrlChanged(String newUrl)   { loadFeed(); }
+    @Override public void onFeedUrlChanged(String newUrl) { loadFeed(); }
+
+    @Override
+    public void onDetectionAlgorithmChanged(String algorithmKey) {
+        if (prefs != null) prefs.setDetectionAlgorithm(algorithmKey);
+        applyDetectionAlgorithm(algorithmKey);
+    }
+
+    private void applyDetectionAlgorithm(String algorithmKey) {
+        if (!bound || service == null) return;
+        AdDetector detector;
+        if (MidBandEnergyDetector.ALGORITHM_KEY.equals(algorithmKey)) {
+            MidBandEnergyDetector energy = new MidBandEnergyDetector();
+            if (prefs != null) energy.threshold = prefs.getThreshold();
+            detector = energy;
+        } else {
+            detector = new NoOpDetector();
+        }
+        detector.setListener(this);
+        service.setDetector(detector);
+    }
+
     @Override public void onThresholdChanged(int threshold) { if (bound && service != null) service.setThreshold(threshold); }
     @Override public void onAdsVolumePctChanged(int pct)    { if (bound && service != null) service.setAdsVolumePct(pct); }
 

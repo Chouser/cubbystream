@@ -51,7 +51,8 @@ public class PlaybackService extends LifecycleService {
     private final IBinder      binder          = new LocalBinder();
     private ExoPlayer          player;
     private PlaybackListener   playbackListener;
-    private CrowdNoiseDetector crowdNoiseDetector;
+    private final AudioTap     audioTap        = new AudioTap();
+    private AdDetector         detector        = new MidBandEnergyDetector();
 
     private String  currentTitle      = "Cubby Stream";
     private boolean isCommercialVolume = false;
@@ -98,10 +99,10 @@ public class PlaybackService extends LifecycleService {
     // -------------------------------------------------------------------------
 
     private void initPlayer() {
-        crowdNoiseDetector = new CrowdNoiseDetector(null);
+        audioTap.setDetector(detector);
 
         DefaultAudioSink audioSink = new DefaultAudioSink.Builder(this)
-                .setAudioProcessors(new AudioProcessor[]{ crowdNoiseDetector })
+                .setAudioProcessors(new AudioProcessor[]{ audioTap })
                 .build();
 
         DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this) {
@@ -173,38 +174,52 @@ public class PlaybackService extends LifecycleService {
     }
 
     public void setThreshold(int threshold) {
-        if (crowdNoiseDetector != null) crowdNoiseDetector.threshold = threshold;
+        if (detector instanceof MidBandEnergyDetector) {
+            ((MidBandEnergyDetector) detector).threshold = threshold;
+        }
+    }
+
+    /**
+     * Swap the active detection algorithm.  The AudioTap pipeline is unaffected;
+     * only the detector reference is updated.
+     */
+    public void setDetector(AdDetector newDetector) {
+        detector = newDetector;
+        audioTap.setDetector(newDetector);
+    }
+
+    /** Wire (or rewire) the logger into the tap and give it a reference to the active detector. */
+    public void setLogger(DetectionLogger logger) {
+        audioTap.setLogger(logger);
     }
 
     public void setAdsVolumePct(int pct) {
         adsVolume = pct / 100f;
-        // If currently in commercial volume, apply the new level immediately
         if (isCommercialVolume) setVolume(adsVolume);
     }
 
     public boolean isPlaying()         { return player != null && player.isPlaying(); }
     public boolean isCommercialVolume() { return isCommercialVolume; }
 
-    /** True when a media item is loaded (playing or paused), false when fully stopped. */
     public boolean hasActiveStream() {
         return player != null && player.getMediaItemCount() > 0;
     }
 
     public void setPlaybackListener(PlaybackListener l) { this.playbackListener = l; }
 
-    public void setCrowdNoiseListener(CrowdNoiseDetector.Listener l) {
-        if (crowdNoiseDetector != null) crowdNoiseDetector.listener = l;
+    public void setDetectionListener(AdDetector.Listener l) {
+        if (detector != null) detector.setListener(l);
     }
 
-    /** Reset the detector's consecutive-frame counters when mode changes. */
     public void resetDetectorCounters() {
-        if (crowdNoiseDetector != null) crowdNoiseDetector.resetCounters();
+        if (detector != null) detector.resetCounters();
     }
 
-    /** Current smoothed energy reading — used to initialize the UI meter on bind. */
     public boolean detectorIsInCommercial() {
-        return crowdNoiseDetector != null && crowdNoiseDetector.isInCommercial();
+        return detector != null && detector.isInCommercial();
     }
+
+    public AdDetector getDetector() { return detector; }
 
     public ExoPlayer getPlayer() { return player; }
 

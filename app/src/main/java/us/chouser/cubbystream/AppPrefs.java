@@ -12,20 +12,22 @@ public class AppPrefs {
     private static final String PREFS_NAME = "cubbystream_prefs";
 
     // Keys
-    public static final String KEY_FEED_URL          = "feed_url";
-    public static final String KEY_THRESHOLD         = "threshold";
-    public static final String KEY_ADS_VOLUME_PCT    = "ads_volume_pct";
-    public static final String KEY_POLL_INTERVAL     = "poll_interval_sec";
-    public static final String KEY_API_DELAY         = "api_delay_sec";
-    public static final String KEY_AUTO_START_AUDIO  = "auto_start_audio";
+    public static final String KEY_FEED_URL            = "feed_url";
+    public static final String KEY_DETECTION_ALGORITHM = "detection_algorithm";
+    public static final String KEY_THRESHOLD           = "threshold";
+    public static final String KEY_ADS_VOLUME_PCT      = "ads_volume_pct";
+    public static final String KEY_POLL_INTERVAL       = "poll_interval_sec";
+    public static final String KEY_API_DELAY           = "api_delay_sec";
+    public static final String KEY_AUTO_START_AUDIO    = "auto_start_audio";
 
     // Defaults
-    public static final String  DEFAULT_FEED_URL        = FeedFetcher.FEED_URL;
-    public static final int     DEFAULT_THRESHOLD        = 200;
-    public static final int     DEFAULT_ADS_VOLUME_PCT   = 10;
-    public static final int     DEFAULT_POLL_INTERVAL    = 3;   // seconds
-    public static final int     DEFAULT_API_DELAY        = 20;  // seconds
-    public static final boolean DEFAULT_AUTO_START_AUDIO = true;
+    public static final String  DEFAULT_FEED_URL            = FeedFetcher.FEED_URL;
+    public static final String  DEFAULT_DETECTION_ALGORITHM = MidBandEnergyDetector.ALGORITHM_KEY;
+    public static final int     DEFAULT_THRESHOLD           = 200;
+    public static final int     DEFAULT_ADS_VOLUME_PCT      = 10;
+    public static final int     DEFAULT_POLL_INTERVAL       = 3;   // seconds
+    public static final int     DEFAULT_API_DELAY           = 20;  // seconds
+    public static final boolean DEFAULT_AUTO_START_AUDIO    = true;
 
     private final SharedPreferences prefs;
 
@@ -36,6 +38,13 @@ public class AppPrefs {
 
     public String getFeedUrl() { return prefs.getString(KEY_FEED_URL, DEFAULT_FEED_URL); }
     public void   setFeedUrl(String url) { prefs.edit().putString(KEY_FEED_URL, url).apply(); }
+
+    public String getDetectionAlgorithm() {
+        return prefs.getString(KEY_DETECTION_ALGORITHM, DEFAULT_DETECTION_ALGORITHM);
+    }
+    public void setDetectionAlgorithm(String key) {
+        prefs.edit().putString(KEY_DETECTION_ALGORITHM, key).apply();
+    }
 
     public int  getThreshold() { return prefs.getInt(KEY_THRESHOLD, DEFAULT_THRESHOLD); }
     public void setThreshold(int v) { prefs.edit().putInt(KEY_THRESHOLD, v).apply(); }

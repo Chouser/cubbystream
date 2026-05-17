@@ -10,9 +10,13 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,6 +36,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
 
     public interface Listener {
         void onFeedUrlChanged(String newUrl);
+        void onDetectionAlgorithmChanged(String algorithmKey);
         void onThresholdChanged(int threshold);
         void onAdsVolumePctChanged(int pct);
         void onPollIntervalChanged(int sec);
@@ -39,8 +44,22 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         void onAutoStartAudioChanged(boolean enabled);
     }
 
+    // Algorithm choices — parallel arrays, index must stay in sync
+    private static final String[] ALGORITHM_KEYS = {
+            MidBandEnergyDetector.ALGORITHM_KEY,
+            NoOpDetector.ALGORITHM_KEY,
+    };
+    private static final String[] ALGORITHM_LABELS = {
+            "Mid-Band Energy",
+            "No Detection",
+    };
+
     private AppPrefs prefs;
     private Listener listener;
+
+    // Views — algorithm
+    private Spinner      spinnerAlgorithm;
+    private LinearLayout layoutThresholdRow;
 
     // Views — audio
     private EditText editFeedUrl;
@@ -109,6 +128,8 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     }
 
     private void bindViews(View v) {
+        spinnerAlgorithm     = v.findViewById(R.id.spinner_algorithm);
+        layoutThresholdRow   = v.findViewById(R.id.layout_threshold_row);
         editFeedUrl          = v.findViewById(R.id.edit_feed_url);
         btnReload            = v.findViewById(R.id.btn_reload_feed);
         btnResetUrl          = v.findViewById(R.id.btn_reset_url);
@@ -132,6 +153,20 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     }
 
     private void populateViews() {
+        // Algorithm spinner — use same spinner_item layout as the stream spinner
+        ArrayAdapter<String> algAdapter = new ArrayAdapter<>(
+                requireContext(), R.layout.spinner_item, ALGORITHM_LABELS);
+        algAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerAlgorithm.setAdapter(algAdapter);
+        String savedAlg = prefs.getDetectionAlgorithm();
+        for (int i = 0; i < ALGORITHM_KEYS.length; i++) {
+            if (ALGORITHM_KEYS[i].equals(savedAlg)) {
+                spinnerAlgorithm.setSelection(i, false);
+                break;
+            }
+        }
+        updateThresholdRowVisibility(savedAlg);
+
         editFeedUrl.setText(prefs.getFeedUrl());
 
         seekThreshold.setMax(THRESHOLD_MAX - THRESHOLD_MIN);
@@ -158,6 +193,20 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     }
 
     private void setupListeners() {
+        // Algorithm picker
+        spinnerAlgorithm.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            boolean firstCall = true;
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                if (firstCall) { firstCall = false; return; } // skip initial programmatic selection
+                String key = ALGORITHM_KEYS[pos];
+                prefs.setDetectionAlgorithm(key);
+                updateThresholdRowVisibility(key);
+                if (listener != null) listener.onDetectionAlgorithmChanged(key);
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
         // Feed URL
         editFeedUrl.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
@@ -248,6 +297,19 @@ public class SettingsSheet extends BottomSheetDialogFragment {
             prefs.setAutoStartAudio(checked);
             if (listener != null) listener.onAutoStartAudioChanged(checked);
         });
+    }
+
+    private void updateThresholdRowVisibility(String algorithmKey) {
+        boolean show = detectorForKey(algorithmKey).hasThreshold();
+        if (layoutThresholdRow != null) {
+            layoutThresholdRow.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    /** Instantiate a bare detector for the given key — used only for capability queries. */
+    private static AdDetector detectorForKey(String key) {
+        if (MidBandEnergyDetector.ALGORITHM_KEY.equals(key)) return new MidBandEnergyDetector();
+        return new NoOpDetector();
     }
 
     // =========================================================================
