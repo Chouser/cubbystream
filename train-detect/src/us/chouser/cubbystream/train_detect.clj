@@ -140,34 +140,31 @@
 
 ;; --- Orchestration ---
 
-(defn train-pipeline [csv-dir]
+(defn read-ds [csv-dir]
   (let [files (->> (io/file csv-dir)
                    file-seq
-                   (filter #(str/ends-with? (.getName ^java.io.File %) ".csv")))
-        ;; Define exactly what features the tree is allowed to split on
-        feature-keys [:energy_mean :energy_std :mid_high_ratio :flux_energy_ratio]
-        feature-strings (map name feature-keys)]
+                   (filter #(str/ends-with? (.getName ^java.io.File %) ".csv")))]
+    (-> (apply tc/concat (map #(tc/dataset % {:key-fn keyword}) files))
+        (tc/order-by :timestamp_ms))))
 
-    (println "Training...")
-    (let [;; Fix 1: Pass {:key-fn keyword} to force string headers into keywords
-          raw-ds (-> (apply tc/concat (map #(tc/dataset % {:key-fn keyword}) files))
-                     (tc/order-by :timestamp_ms))
+(defn train-pipeline [csv-dir]
+  (println "Training...")
+  (let [feature-keys [:energy_mean :energy_std :mid_high_ratio :flux_energy_ratio]
+        feature-strings (map name feature-keys)
+        processed-ds (-> (read-ds csv-dir)
+                         fix-user-latency
+                         clean-short-spans
+                         add-features
+                         (tc/map-columns :volume_mode (fn [v] (if (= v "ads") 1 0)))
+                         ;; Fix 2: Isolate ONLY the target and training features
+                         (tc/select-columns (conj feature-keys :volume_mode))
+                         (ds-mod/set-inference-target :volume_mode))
 
-          processed-ds (-> raw-ds
-                           fix-user-latency
-                           clean-short-spans
-                           add-features
-                           (tc/map-columns :volume_mode (fn [v] (if (= v "ads") 1 0)))
-                           ;; Fix 2: Isolate ONLY the target and training features
-                           (tc/select-columns (conj feature-keys :volume_mode))
-                           (ds-mod/set-inference-target :volume_mode))
-
-          model (ml/train processed-ds {:model-type :smile.classification/decision-tree
-                                        :max-nodes 24
-                                        :split-rule :gini})]
-
-      (println "Training complete.")
-      (model->tree model feature-strings))))
+        model (ml/train processed-ds {:model-type :smile.classification/decision-tree
+                                      :max-nodes 24
+                                      :split-rule :gini})]
+    (println "Training complete.")
+    (model->tree model feature-strings)))
 
 (comment
 
