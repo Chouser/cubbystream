@@ -1,5 +1,11 @@
 package us.chouser.cubbystream;
 
+// TODO: when no live game, hide the base diamonds. if the inning is also 0, replace with "no live game"
+// TODO: should not compute teamNameToSlug, but follow the team.link,
+// then get teams[0].teamName and lowercase _that_. Probably should use
+// the teamName instead of abbreviation in the main activity display as well.
+// TODO: settings panel on TV -- sliders don't get focus
+
 import android.Manifest;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -70,7 +76,6 @@ public class MainActivity extends AppCompatActivity
     private Button       btnPlay;
     private TextView     textStatus;
     private LinearLayout layoutInfoPanel;
-    private TextView     textEnergyLevel;
     private TextView     textModeIndicator;
     private ProgressBar  progressEnergy;
     private Button       btnPause;
@@ -337,7 +342,6 @@ public class MainActivity extends AppCompatActivity
         btnPlay            = findViewById(R.id.btn_play);
         textStatus         = findViewById(R.id.text_status);
         layoutInfoPanel    = findViewById(R.id.layout_info_panel);
-        textEnergyLevel    = findViewById(R.id.text_energy_level);
         textModeIndicator  = findViewById(R.id.text_mode_indicator);
         progressEnergy     = findViewById(R.id.progress_energy);
         btnPause           = findViewById(R.id.btn_pause);
@@ -745,7 +749,6 @@ public class MainActivity extends AppCompatActivity
 
         if (det == null) {
             progressEnergy.setVisibility(android.view.View.INVISIBLE);
-            textEnergyLevel.setText("");
             return;
         }
 
@@ -754,7 +757,6 @@ public class MainActivity extends AppCompatActivity
 
         if (Float.isNaN(signal)) {
             progressEnergy.setVisibility(android.view.View.INVISIBLE);
-            textEnergyLevel.setText("");
             return;
         }
 
@@ -765,13 +767,11 @@ public class MainActivity extends AppCompatActivity
             progressEnergy.setProgress(pct);
             int color = signal >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
             progressEnergy.getProgressDrawable().setTint(color);
-            textEnergyLevel.setText(String.format(Locale.US, "%.0f / %.0f", signal, threshold));
         } else {
             // No threshold (e.g. NoOpDetector) — show signal as a simple 0–100 bar
             int pct = (int) Math.min(signal, 100);
             progressEnergy.setProgress(pct);
             progressEnergy.getProgressDrawable().setTint(0xFF1565C0);
-            textEnergyLevel.setText(String.format(Locale.US, "%.0f", signal));
         }
     }
 

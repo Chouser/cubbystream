@@ -33,13 +33,10 @@
             android:textColor="@color/text_primary"
             android:layout_marginBottom="20dp"/>
 
-        <!-- ================================================================= -->
-        <!-- Feed URL                                                           -->
-        <!-- ================================================================= -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Feed URL"
+            android:text="Radio station list URL"
             android:textSize="12sp"
             android:textColor="@color/text_secondary"
             android:textAllCaps="true"
@@ -93,20 +90,17 @@
             android:id="@+id/btn_reload_feed"
             android:layout_width="match_parent"
             android:layout_height="50dp"
-            android:text="↻  Reload Feed"
+            android:text="↻  Reload List"
             android:textSize="14sp"
             android:backgroundTint="@color/btn_live"
             android:textColor="@color/text_on_accent"
             android:layout_marginBottom="24dp"
             style="@style/Widget.MaterialComponents.Button"/>
 
-        <!-- ================================================================= -->
-        <!-- Detection Algorithm                                               -->
-        <!-- ================================================================= -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Detection Algorithm"
+            android:text="Ad Detection Algorithm"
             android:textSize="12sp"
             android:textColor="@color/text_secondary"
             android:textAllCaps="true"
@@ -139,7 +133,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Game Level Threshold"
+                android:text="Game Energy Threshold"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:textAllCaps="true"
@@ -291,7 +285,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Gameday Poll Interval"
+                android:text="Game Data Poll Interval"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:textAllCaps="true"
@@ -355,7 +349,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Stream Delay (API offset)"
+                android:text="Game Data Delay"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:textAllCaps="true"
@@ -442,7 +436,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Log Files"
+            android:text="Audio Stats Log Files"
             android:textSize="12sp"
             android:textColor="@color/text_secondary"
             android:textAllCaps="true"

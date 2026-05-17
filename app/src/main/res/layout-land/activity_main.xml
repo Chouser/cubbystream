@@ -111,35 +111,16 @@
             android:paddingBottom="8dp"
             android:visibility="invisible">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/text_mode_indicator"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/text_energy_level"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="monospace"
-                    android:text="Level: —"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/text_mode_indicator"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="monospace"
-                    android:gravity="center"
-                    android:text="Auto: Game"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="10sp" />
-
-            </LinearLayout>
+                android:fontFamily="monospace"
+                android:gravity="left"
+                android:text="Auto: Game"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
 
             <ProgressBar
                 android:id="@+id/progress_energy"
@@ -545,7 +526,7 @@
                 android:padding="8dp"
                 android:text="Play\nby\nPlay"
                 android:textColor="@color/text_secondary"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 app:layout_constraintBottom_toBottomOf="@+id/image_baseball_diamond"
                 app:layout_constraintStart_toStartOf="@+id/image_baseball_diamond" />
 

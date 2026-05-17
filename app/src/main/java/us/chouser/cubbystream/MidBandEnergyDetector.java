@@ -65,7 +65,7 @@ public class MidBandEnergyDetector implements AdDetector {
     public String getStatusText() {
         float s = latestSignal;
         if (Float.isNaN(s)) return null;
-        return String.format(Locale.US, "energy %.0f / thr %.0f", s, threshold);
+        return String.format(Locale.US, "%.0f / %.0f", s, threshold);
     }
 
     @Override public void setListener(AdDetector.Listener listener) { this.listener = listener; }
