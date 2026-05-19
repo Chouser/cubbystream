@@ -4,6 +4,7 @@
     android:layout_height="wrap_content"
     android:background="@color/header_bg"
     android:clipToPadding="false"
+    android:descendantFocusability="afterDescendants"
     android:paddingBottom="32dp">
 
     <LinearLayout
@@ -165,8 +166,11 @@
 
         <SeekBar
             android:id="@+id/seek_threshold"
+            android:focusable="true"
+            android:background="@drawable/seekbar_focus_bg"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
+            android:minHeight="48dp"
             android:layout_marginBottom="4dp"/>
 
         <LinearLayout
@@ -242,8 +246,11 @@
 
         <SeekBar
             android:id="@+id/seek_ads_volume"
+            android:focusable="true"
+            android:background="@drawable/seekbar_focus_bg"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
+            android:minHeight="48dp"
             android:layout_marginBottom="4dp"/>
 
         <LinearLayout
@@ -317,8 +324,11 @@
 
         <SeekBar
             android:id="@+id/seek_poll_interval"
+            android:focusable="true"
+            android:background="@drawable/seekbar_focus_bg"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
+            android:minHeight="48dp"
             android:layout_marginBottom="4dp"/>
 
         <LinearLayout
@@ -381,8 +391,11 @@
 
         <SeekBar
             android:id="@+id/seek_api_delay"
+            android:focusable="true"
+            android:background="@drawable/seekbar_focus_bg"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
+            android:minHeight="48dp"
             android:layout_marginBottom="4dp"/>
 
         <LinearLayout
