@@ -143,22 +143,10 @@ public class DetectionLogger {
         AudioFrameUtils.hannWindow(mono, realPart, imagPart, AudioTap.FRAME_SIZE);
         AudioFrameUtils.fft(realPart, imagPart, AudioTap.FRAME_SIZE);
 
-        int   bins     = AudioTap.FRAME_SIZE / 2;
-        float sumMag   = 0, sumLogMag = 0, maxMag = 0, flux = 0;
-        for (int i = 0; i < bins; i++) {
-            float mag = (float) Math.sqrt(realPart[i] * realPart[i] + imagPart[i] * imagPart[i]);
-            sumMag    += mag;
-            sumLogMag += (float) Math.log(mag + 1e-6f);
-            if (mag > maxMag) maxMag = mag;
-            float diff = mag - prevMag[i];
-            if (diff > 0) flux += diff;
-            prevMag[i] = mag;
-        }
-        float avgMag   = sumMag / bins;
-        float flatness = (float) Math.exp(sumLogMag / bins) / (avgMag + 1e-6f);
-        float papr     = maxMag / (avgMag + 1e-6f);
-        float zcr      = totalSamples > 0 ? (float) zcCount / totalSamples : 0f;
+        AudioFrameUtils.SpectralStats ss =
+                AudioFrameUtils.spectralStats(realPart, imagPart, prevMag, AudioTap.FRAME_SIZE);
 
+        float zcr   = totalSamples > 0 ? (float) zcCount / totalSamples : 0f;
         float lowE  = AudioFrameUtils.bandEnergy(realPart, imagPart,   20,  120, sampleRate, AudioTap.FRAME_SIZE);
         float midE  = AudioFrameUtils.bandEnergy(realPart, imagPart,  120, 1800, sampleRate, AudioTap.FRAME_SIZE);
         float highE = AudioFrameUtils.bandEnergy(realPart, imagPart, 1800, 8000, sampleRate, AudioTap.FRAME_SIZE);
@@ -169,9 +157,9 @@ public class DetectionLogger {
         final long   ts         = System.currentTimeMillis();
         final float  fRms       = rms;
         final float  fMidE      = midE;
-        final float  fFlatness  = flatness;
-        final float  fFlux      = flux;
-        final float  fPapr      = papr;
+        final float  fFlatness  = ss.flatness;
+        final float  fFlux      = ss.flux;
+        final float  fPapr      = ss.papr;
         final float  fZcr       = zcr;
         final float  fLowE      = lowE;
         final float  fHighE     = highE;

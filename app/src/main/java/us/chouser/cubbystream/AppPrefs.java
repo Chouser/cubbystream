@@ -28,6 +28,8 @@ public class AppPrefs {
     public static final int     DEFAULT_POLL_INTERVAL       = 3;   // seconds
     public static final int     DEFAULT_API_DELAY           = 20;  // seconds
     public static final boolean DEFAULT_AUTO_START_AUDIO    = true;
+    public static final String  KEY_LOGGING_ENABLED         = "logging_enabled";
+    public static final boolean DEFAULT_LOGGING_ENABLED     = false;
 
     private final SharedPreferences prefs;
 
@@ -60,4 +62,7 @@ public class AppPrefs {
 
     public boolean getAutoStartAudio() { return prefs.getBoolean(KEY_AUTO_START_AUDIO, DEFAULT_AUTO_START_AUDIO); }
     public void    setAutoStartAudio(boolean v) { prefs.edit().putBoolean(KEY_AUTO_START_AUDIO, v).apply(); }
+
+    public boolean getLoggingEnabled() { return prefs.getBoolean(KEY_LOGGING_ENABLED, DEFAULT_LOGGING_ENABLED); }
+    public void    setLoggingEnabled(boolean v) { prefs.edit().putBoolean(KEY_LOGGING_ENABLED, v).apply(); }
 }

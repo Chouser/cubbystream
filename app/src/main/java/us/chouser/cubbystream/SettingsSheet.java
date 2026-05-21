@@ -42,15 +42,18 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         void onPollIntervalChanged(int sec);
         void onApiDelayChanged(int sec);
         void onAutoStartAudioChanged(boolean enabled);
+        void onLoggingEnabledChanged(boolean enabled);
     }
 
     // Algorithm choices — parallel arrays, index must stay in sync
     private static final String[] ALGORITHM_KEYS = {
             MidBandEnergyDetector.ALGORITHM_KEY,
+            GeneratedDetector.ALGORITHM_KEY,
             NoOpDetector.ALGORITHM_KEY,
     };
     private static final String[] ALGORITHM_LABELS = {
             "Mid-Band Energy",
+            "Trained Detector 1",
             "No Detection",
     };
 
@@ -79,6 +82,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     private TextView textApiDelayVal;
     private Button   btnResetApiDelay;
     private Switch   switchAutoStart;
+    private Switch   switchLogging;
 
     // Views — logs
     private TextView textLogPath;
@@ -146,6 +150,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         textApiDelayVal      = v.findViewById(R.id.text_api_delay_val);
         btnResetApiDelay     = v.findViewById(R.id.btn_reset_api_delay);
         switchAutoStart      = v.findViewById(R.id.switch_auto_start);
+        switchLogging        = v.findViewById(R.id.switch_logging);
         textLogPath          = v.findViewById(R.id.text_log_path);
         btnShareLog          = v.findViewById(R.id.btn_share_log);
         btnOpenLogDir        = v.findViewById(R.id.btn_open_log_dir);
@@ -186,6 +191,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         textApiDelayVal.setText(prefs.getApiDelay() + "s");
 
         switchAutoStart.setChecked(prefs.getAutoStartAudio());
+        switchLogging.setChecked(prefs.getLoggingEnabled());
 
         File logDir = DetectionLogger.getLogDir(requireContext());
         textLogPath.setText(logDir != null ? logDir.getAbsolutePath() : "unavailable");
@@ -297,6 +303,11 @@ public class SettingsSheet extends BottomSheetDialogFragment {
             prefs.setAutoStartAudio(checked);
             if (listener != null) listener.onAutoStartAudioChanged(checked);
         });
+
+        switchLogging.setOnCheckedChangeListener((btn, checked) -> {
+            prefs.setLoggingEnabled(checked);
+            if (listener != null) listener.onLoggingEnabledChanged(checked);
+        });
     }
 
     private void updateThresholdRowVisibility(String algorithmKey) {
@@ -309,6 +320,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     /** Instantiate a bare detector for the given key — used only for capability queries. */
     private static AdDetector detectorForKey(String key) {
         if (MidBandEnergyDetector.ALGORITHM_KEY.equals(key)) return new MidBandEnergyDetector();
+        else if (GeneratedDetector.ALGORITHM_KEY.equals(key)) return new GeneratedDetector();
         return new NoOpDetector();
     }
 

@@ -553,9 +553,11 @@ public class MainActivity extends AppCompatActivity
     private void doPlayStream(StreamItem item) {
         currentTitle = item.getTitle();
         service.playStream(item.getUrl(), item.getTitle(), item.getType());
-        logger.open(this, currentTitle);
-        logger.setVolumeMode(volumeMode.name().toLowerCase());
-        service.setLogger(logger);
+        if (prefs.getLoggingEnabled()) {
+            logger.open(this, currentTitle);
+            logger.setVolumeMode(volumeMode.name().toLowerCase());
+            service.setLogger(logger);
+        }
         layoutInfoPanel.setVisibility(View.VISIBLE);
 
         // Gameday is already polling from startGamedayForSelected(); just reset
@@ -836,6 +838,9 @@ public class MainActivity extends AppCompatActivity
             MidBandEnergyDetector energy = new MidBandEnergyDetector();
             if (prefs != null) energy.threshold = prefs.getThreshold();
             detector = energy;
+        } else if (GeneratedDetector.ALGORITHM_KEY.equals(algorithmKey)) {
+            GeneratedDetector d = new GeneratedDetector();
+            detector = d;
         } else {
             detector = new NoOpDetector();
         }
@@ -862,6 +867,20 @@ public class MainActivity extends AppCompatActivity
             vm.autoStartArmed = true;
         } else if (!enabled) {
             vm.autoStartArmed = false;
+        }
+    }
+
+    @Override
+    public void onLoggingEnabledChanged(boolean enabled) {
+        if (enabled) {
+            if (service != null && service.hasActiveStream()) {
+                logger.open(this, currentTitle);
+                logger.setVolumeMode(volumeMode.name().toLowerCase());
+                service.setLogger(logger);
+            }
+        } else {
+            if (service != null) service.setLogger(null);
+            logger.close();
         }
     }
 

@@ -7,18 +7,25 @@ package us.chouser.cubbystream;
  * <p>All methods operate on the interleaved float frames delivered by
  * {@link AudioTap}: {@code samples[g * channelCount + c]} is sample-group
  * {@code g}, channel {@code c}.
+ *
+ * <p>Stateful helpers (rolling mean/std) are provided as inner classes so
+ * each consumer owns its own instance with no shared state.
  */
 public final class AudioFrameUtils {
 
     private AudioFrameUtils() {}
 
+    // =========================================================================
+    // Channel mixing
+    // =========================================================================
+
     /**
-     * Mix all channels to mono in-place into {@code out}.
+     * Mix all channels to mono into {@code out}.
      *
-     * @param samples     interleaved frame from {@link AudioTap}
-     * @param frameSize   number of sample-groups
+     * @param samples      interleaved frame from {@link AudioTap}
+     * @param frameSize    number of sample-groups
      * @param channelCount channels per group
-     * @param out         destination array, length >= frameSize
+     * @param out          destination array, length >= frameSize
      */
     public static void toMono(float[] samples, int frameSize, int channelCount, float[] out) {
         if (channelCount == 1) {
@@ -34,17 +41,40 @@ public final class AudioFrameUtils {
         }
     }
 
+    // =========================================================================
+    // Time-domain stats
+    // =========================================================================
+
     /**
      * RMS of a mono array, scaled ×1000 for readability.
-     *
-     * @param mono      mono samples (e.g. from {@link #toMono})
-     * @param frameSize number of valid samples
      */
     public static float rms(float[] mono, int frameSize) {
         float sumSq = 0f;
         for (int i = 0; i < frameSize; i++) sumSq += mono[i] * mono[i];
         return (float) Math.sqrt(sumSq / frameSize) * 1000f;
     }
+
+    /**
+     * Zero-crossing rate: fraction of consecutive-sample sign changes.
+     *
+     * @param mono        mono samples
+     * @param frameSize   valid sample count
+     * @param lastSample  last sample of the previous frame (for continuity)
+     */
+    public static float zcr(float[] mono, int frameSize, float lastSample) {
+        int crossings = 0;
+        float prev = lastSample;
+        for (int i = 0; i < frameSize; i++) {
+            float s = mono[i];
+            if ((prev > 0 && s <= 0) || (prev < 0 && s >= 0)) crossings++;
+            prev = s;
+        }
+        return (float) crossings / frameSize;
+    }
+
+    // =========================================================================
+    // Frequency domain — windowing and FFT
+    // =========================================================================
 
     /**
      * Apply a Hann window to {@code mono} and write into {@code re};
@@ -91,15 +121,19 @@ public final class AudioFrameUtils {
         }
     }
 
+    // =========================================================================
+    // Frequency domain — spectral features
+    // =========================================================================
+
     /**
-     * Mean energy of FFT bins corresponding to the frequency band [loHz, hiHz].
+     * Mean energy of FFT bins in the frequency band [loHz, hiHz].
      *
-     * @param re        real part after {@link #fft}
-     * @param im        imaginary part after {@link #fft}
-     * @param loHz      lower bound of band in Hz (inclusive)
-     * @param hiHz      upper bound of band in Hz (inclusive)
+     * @param re         real part after {@link #fft}
+     * @param im         imaginary part after {@link #fft}
+     * @param loHz       lower bound in Hz (inclusive)
+     * @param hiHz       upper bound in Hz (inclusive)
      * @param sampleRate sample rate in Hz
-     * @param n         FFT size (== re.length)
+     * @param n          FFT size
      */
     public static float bandEnergy(float[] re, float[] im,
                                    int loHz, int hiHz, int sampleRate, int n) {
@@ -109,5 +143,122 @@ public final class AudioFrameUtils {
         float sum = 0f;
         for (int i = loBin; i <= hiBin; i++) sum += re[i] * re[i] + im[i] * im[i];
         return sum / (hiBin - loBin + 1);
+    }
+
+    /**
+     * Immutable snapshot of spectral statistics computed from one FFT frame.
+     * Obtain via {@link #spectralStats(float[], float[], float[], int)}.
+     */
+    public static final class SpectralStats {
+        /** Spectral flatness (Wiener entropy), in [0, 1]. */
+        public final float flatness;
+        /** Positive spectral flux (half-wave rectified frame-to-frame magnitude change). */
+        public final float flux;
+        /** Peak-to-average power ratio. */
+        public final float papr;
+
+        private SpectralStats(float flatness, float flux, float papr) {
+            this.flatness = flatness;
+            this.flux     = flux;
+            this.papr     = papr;
+        }
+    }
+
+    /**
+     * Compute {@link SpectralStats} from a completed FFT frame.
+     *
+     * <p>Because flux requires the previous frame's magnitudes, the caller
+     * owns a {@code prevMag} array of length {@code n/2} and passes it in;
+     * this method updates it in-place.
+     *
+     * @param re      real part after {@link #fft}, length >= n
+     * @param im      imaginary part after {@link #fft}, length >= n
+     * @param prevMag previous frame magnitudes (length n/2); updated by this call
+     * @param n       FFT size
+     */
+    public static SpectralStats spectralStats(float[] re, float[] im,
+                                              float[] prevMag, int n) {
+        int   bins      = n / 2;
+        float sumMag    = 0, sumLogMag = 0, maxMag = 0, flux = 0;
+        for (int i = 0; i < bins; i++) {
+            float mag  = (float) Math.sqrt(re[i] * re[i] + im[i] * im[i]);
+            sumMag    += mag;
+            sumLogMag += (float) Math.log(mag + 1e-6f);
+            if (mag > maxMag) maxMag = mag;
+            float diff = mag - prevMag[i];
+            if (diff > 0) flux += diff;
+            prevMag[i] = mag;
+        }
+        float avgMag   = sumMag / bins;
+        float flatness = (float) Math.exp(sumLogMag / bins) / (avgMag + 1e-6f);
+        float papr     = maxMag / (avgMag + 1e-6f);
+        return new SpectralStats(flatness, flux, papr);
+    }
+
+    /**
+     * Ratio of mid-band to high-band energy, clamped to avoid division by zero.
+     * Matches the {@code mid_high_ratio} feature in the training pipeline.
+     */
+    public static float midHighRatio(float midBand, float highBand) {
+        return midBand / Math.max(highBand, 1.0f);
+    }
+
+    /**
+     * Ratio of flux to energy, clamped to avoid division by zero.
+     * Matches the {@code flux_energy_ratio} feature in the training pipeline.
+     */
+    public static float fluxEnergyRatio(float flux, float energy) {
+        return flux / Math.max(energy, 1.0f);
+    }
+
+    // =========================================================================
+    // Stateful helpers — one instance per consumer
+    // =========================================================================
+
+    /**
+     * Rolling mean and standard deviation over a fixed window of scalar values.
+     *
+     * <p>Uses Welford's online algorithm for numerically stable variance.
+     * The window must be full before {@link #mean()} and {@link #std()} are
+     * meaningful; check {@link #ready()} before using them.
+     */
+    public static final class RollingStats {
+        private final float[] buf;
+        private final int     window;
+        private int   pos   = 0;
+        private int   count = 0;
+        private float sum   = 0f;
+        private float sumSq = 0f;
+
+        public RollingStats(int window) {
+            this.window = window;
+            this.buf    = new float[window];
+        }
+
+        /** Push a new value; drops the oldest when the window is full. */
+        public void push(float value) {
+            float old = buf[pos];
+            buf[pos] = value;
+            pos = (pos + 1) % window;
+            if (count < window) {
+                count++;
+                sum   += value;
+                sumSq += value * value;
+            } else {
+                sum   += value - old;
+                sumSq += value * value - old * old;
+            }
+        }
+
+        /** True once {@code window} values have been pushed. */
+        public boolean ready() { return count == window; }
+
+        public float mean() { return sum / count; }
+
+        public float std() {
+            if (count < 2) return 0f;
+            float variance = (sumSq - (sum * sum) / count) / (count - 1);
+            return (float) Math.sqrt(Math.max(variance, 0f));
+        }
     }
 }
