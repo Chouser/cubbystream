@@ -833,16 +833,9 @@ public class MainActivity extends AppCompatActivity
 
     private void applyDetectionAlgorithm(String algorithmKey) {
         if (!bound || service == null) return;
-        AdDetector detector;
-        if (MidBandEnergyDetector.ALGORITHM_KEY.equals(algorithmKey)) {
-            MidBandEnergyDetector energy = new MidBandEnergyDetector();
-            if (prefs != null) energy.threshold = prefs.getThreshold();
-            detector = energy;
-        } else if (GeneratedDetector.ALGORITHM_KEY.equals(algorithmKey)) {
-            GeneratedDetector d = new GeneratedDetector();
-            detector = d;
-        } else {
-            detector = new NoOpDetector();
+        AdDetector detector = DetectorRegistry.forKey(algorithmKey);
+        if (detector instanceof MidBandEnergyDetector && prefs != null) {
+            ((MidBandEnergyDetector) detector).threshold = prefs.getThreshold();
         }
         detector.setListener(this);
         service.setDetector(detector);

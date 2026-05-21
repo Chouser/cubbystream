@@ -45,18 +45,6 @@ public class SettingsSheet extends BottomSheetDialogFragment {
         void onLoggingEnabledChanged(boolean enabled);
     }
 
-    // Algorithm choices — parallel arrays, index must stay in sync
-    private static final String[] ALGORITHM_KEYS = {
-            MidBandEnergyDetector.ALGORITHM_KEY,
-            GeneratedDetector.ALGORITHM_KEY,
-            NoOpDetector.ALGORITHM_KEY,
-    };
-    private static final String[] ALGORITHM_LABELS = {
-            "Mid-Band Energy",
-            "Trained Detector 1",
-            "No Detection",
-    };
-
     private AppPrefs prefs;
     private Listener listener;
 
@@ -158,14 +146,17 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     }
 
     private void populateViews() {
-        // Algorithm spinner — use same spinner_item layout as the stream spinner
+        // Algorithm spinner — derived from DetectorRegistry so no parallel arrays to maintain
+        String[] labels = DetectorRegistry.ALL.stream()
+                .map(DetectorRegistry.Entry::displayName)
+                .toArray(String[]::new);
         ArrayAdapter<String> algAdapter = new ArrayAdapter<>(
-                requireContext(), R.layout.spinner_item, ALGORITHM_LABELS);
+                requireContext(), R.layout.spinner_item, labels);
         algAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAlgorithm.setAdapter(algAdapter);
         String savedAlg = prefs.getDetectionAlgorithm();
-        for (int i = 0; i < ALGORITHM_KEYS.length; i++) {
-            if (ALGORITHM_KEYS[i].equals(savedAlg)) {
+        for (int i = 0; i < DetectorRegistry.ALL.size(); i++) {
+            if (DetectorRegistry.ALL.get(i).key.equals(savedAlg)) {
                 spinnerAlgorithm.setSelection(i, false);
                 break;
             }
@@ -204,8 +195,8 @@ public class SettingsSheet extends BottomSheetDialogFragment {
             boolean firstCall = true;
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-                if (firstCall) { firstCall = false; return; } // skip initial programmatic selection
-                String key = ALGORITHM_KEYS[pos];
+                if (firstCall) { firstCall = false; return; }
+                String key = DetectorRegistry.ALL.get(pos).key;
                 prefs.setDetectionAlgorithm(key);
                 updateThresholdRowVisibility(key);
                 if (listener != null) listener.onDetectionAlgorithmChanged(key);
@@ -311,17 +302,10 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     }
 
     private void updateThresholdRowVisibility(String algorithmKey) {
-        boolean show = detectorForKey(algorithmKey).hasThreshold();
+        boolean show = DetectorRegistry.forKey(algorithmKey).hasThreshold();
         if (layoutThresholdRow != null) {
             layoutThresholdRow.setVisibility(show ? View.VISIBLE : View.GONE);
         }
-    }
-
-    /** Instantiate a bare detector for the given key — used only for capability queries. */
-    private static AdDetector detectorForKey(String key) {
-        if (MidBandEnergyDetector.ALGORITHM_KEY.equals(key)) return new MidBandEnergyDetector();
-        else if (GeneratedDetector.ALGORITHM_KEY.equals(key)) return new GeneratedDetector();
-        return new NoOpDetector();
     }
 
     // =========================================================================
