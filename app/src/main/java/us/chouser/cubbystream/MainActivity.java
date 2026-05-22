@@ -142,7 +142,7 @@ public class MainActivity extends AppCompatActivity
                 vm.playState = MainViewModel.PlayState.STOPPED;
             }
             updatePlaybackUi();
-            applyVolumeMode(VolumeMode.AUTO);
+            applyVolumeMode(prefs != null ? prefs.getVolumeMode() : VolumeMode.AUTO);
 
             if (prefs != null) {
                 applyDetectionAlgorithm(prefs.getDetectionAlgorithm());
@@ -697,6 +697,7 @@ public class MainActivity extends AppCompatActivity
 
     private void applyVolumeMode(VolumeMode mode) {
         volumeMode = mode;
+        if (prefs != null) prefs.setVolumeMode(mode);
         logger.setVolumeMode(mode.name().toLowerCase());
         if (service != null) {
             switch (mode) {

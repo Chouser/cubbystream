@@ -19,6 +19,8 @@ public class AppPrefs {
     public static final String KEY_POLL_INTERVAL       = "poll_interval_sec";
     public static final String KEY_API_DELAY           = "api_delay_sec";
     public static final String KEY_AUTO_START_AUDIO    = "auto_start_audio";
+    public static final String KEY_VOLUME_MODE         = "volume_mode";
+    public static final String KEY_LOGGING_ENABLED     = "logging_enabled";
 
     // Defaults
     public static final String  DEFAULT_FEED_URL            = FeedFetcher.FEED_URL;
@@ -28,7 +30,6 @@ public class AppPrefs {
     public static final int     DEFAULT_POLL_INTERVAL       = 3;   // seconds
     public static final int     DEFAULT_API_DELAY           = 20;  // seconds
     public static final boolean DEFAULT_AUTO_START_AUDIO    = true;
-    public static final String  KEY_LOGGING_ENABLED         = "logging_enabled";
     public static final boolean DEFAULT_LOGGING_ENABLED     = false;
 
     private final SharedPreferences prefs;
@@ -65,4 +66,20 @@ public class AppPrefs {
 
     public boolean getLoggingEnabled() { return prefs.getBoolean(KEY_LOGGING_ENABLED, DEFAULT_LOGGING_ENABLED); }
     public void    setLoggingEnabled(boolean v) { prefs.edit().putBoolean(KEY_LOGGING_ENABLED, v).apply(); }
+
+    /**
+     * Returns the persisted volume mode, defaulting to AUTO.
+     * Uses the enum's name() string as the stored value.
+     */
+    public MainActivity.VolumeMode getVolumeMode() {
+        String name = prefs.getString(KEY_VOLUME_MODE, MainActivity.VolumeMode.AUTO.name());
+        try {
+            return MainActivity.VolumeMode.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return MainActivity.VolumeMode.AUTO;
+        }
+    }
+    public void setVolumeMode(MainActivity.VolumeMode mode) {
+        prefs.edit().putString(KEY_VOLUME_MODE, mode.name()).apply();
+    }
 }
