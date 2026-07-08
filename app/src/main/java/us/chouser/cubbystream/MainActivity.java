@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity
     private MainViewModel vm;
 
     // ---- Volume mode ----
-    private enum VolumeMode { AUTO, GAME, ADS }
+    public enum VolumeMode { AUTO, GAME, ADS }
     private VolumeMode volumeMode = VolumeMode.AUTO;
 
     // ---- Logging ----
@@ -766,15 +766,17 @@ public class MainActivity extends AppCompatActivity
         progressEnergy.setVisibility(android.view.View.VISIBLE);
 
         if (!Float.isNaN(threshold) && threshold > 0) {
-            int pct = (int) Math.min((signal / threshold) * 50f, 100);
+            int pct = (int) Math.min((signal / threshold) * 100f, 100);
             progressEnergy.setProgress(pct);
             int color = signal >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
             progressEnergy.getProgressDrawable().setTint(color);
         } else {
-            // No threshold (e.g. NoOpDetector) — show signal as a simple 0–100 bar
-            int pct = (int) Math.min(signal, 100);
+            // No threshold (e.g. GeneratedDetector) — signal is in [0,1] where 1=game, 0=ads.
+            // Scale to 0–100 and apply the same game/ad color convention.
+            int pct = (int) Math.min(signal * 100f, 100);
             progressEnergy.setProgress(pct);
-            progressEnergy.getProgressDrawable().setTint(0xFF1565C0);
+            int color = signal >= 0.5f ? 0xFF2E7D32 : 0xFFB71C1C; // green = game, red = ads
+            progressEnergy.getProgressDrawable().setTint(color);
         }
     }
 

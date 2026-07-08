@@ -74,6 +74,13 @@ public interface AdDetector {
     /**
      * The primary scalar signal used for the progress bar, in the same units
      * as {@link #getThreshold()}.  Return {@link Float#NaN} to hide the bar.
+     *
+     * <p><strong>Convention:</strong> higher values indicate game audio;
+     * lower values indicate a commercial break.  When a threshold is present
+     * ({@link #hasThreshold()} is true), the bar is green and full when
+     * {@code signal >= threshold} (game) and red/low when below (ads).
+     * Threshold-free detectors should return a value in [0, 1] where 1 = game
+     * and 0 = ads so the same green/red convention applies.
      */
     float getSignalLevel();
 

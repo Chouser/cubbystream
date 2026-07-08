@@ -39,7 +39,8 @@ public class GeneratedDetector implements AdDetector {
     @Override public float   getSignalLevel()  { return latestSignal; }
     @Override public String  getStatusText() {
         float s = latestSignal;
-        return Float.isNaN(s) ? null : String.format(Locale.US, "signal %.2f", s);
+        if (Float.isNaN(s)) return null;
+        return String.format(Locale.US, "%s (%.0f%%)", s >= 0.5f ? "game" : "ads", s * 100f);
     }
 
     @Override public void    setListener(AdDetector.Listener l) { this.listener = l; }
@@ -59,7 +60,9 @@ public class GeneratedDetector implements AdDetector {
         AudioFrameUtils.SpectralStats ss = AudioFrameUtils.spectralStats(re, im, prevMag, FRAME_SIZE);
         energyRoll.push(midE);
         if (!(energyRoll.ready())) return;
-        latestSignal = (float) predict(energyRoll.std(), energyRoll.mean(), AudioFrameUtils.midHighRatio(midE, highE), AudioFrameUtils.fluxEnergyRatio(ss.flux, midE));
+        // predict() returns 1=ADS, 0=GAME; invert so latestSignal is high for GAME, low for ADS,
+        // matching the progress-bar convention (green/high = game, red/low = ads).
+        latestSignal = 1f - (float) predict(energyRoll.std(), energyRoll.mean(), AudioFrameUtils.midHighRatio(midE, highE), AudioFrameUtils.fluxEnergyRatio(ss.flux, midE));
         updateStateMachine(latestSignal);
     }
 
@@ -160,8 +163,8 @@ public class GeneratedDetector implements AdDetector {
     }
 
     private void updateStateMachine(float signal) {
-        // predict() returns 1=ADS, 0=GAME
-        if (signal > 0.5f) {
+        // signal is now 1=GAME, 0=ADS (inverted from predict() which returns 1=ADS, 0=GAME)
+        if (signal < 0.5f) {
             belowCount = 0; aboveCount++;
             if (!inCommercial && aboveCount >= TRIGGER_FRAMES) {
                 inCommercial = true;
