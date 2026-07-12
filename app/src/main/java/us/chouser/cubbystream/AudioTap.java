@@ -39,6 +39,7 @@ public class AudioTap implements AudioProcessor {
     // Consumers — may be null; swappable at runtime
     private volatile AdDetector      detector;
     private volatile DetectionLogger logger;
+    private volatile AudioRecorder   recorder;
 
     // -------------------------------------------------------------------------
     // Consumer wiring
@@ -46,6 +47,7 @@ public class AudioTap implements AudioProcessor {
 
     public void setDetector(AdDetector detector) { this.detector = detector; }
     public void setLogger(DetectionLogger logger) { this.logger   = logger;   }
+    public void setRecorder(AudioRecorder recorder) { this.recorder = recorder; }
 
     // -------------------------------------------------------------------------
     // AudioProcessor
@@ -75,7 +77,7 @@ public class AudioTap implements AudioProcessor {
             outputBuffer = ByteBuffer.allocateDirect(remaining).order(ByteOrder.nativeOrder());
         }
         outputBuffer.clear();
-        ByteBuffer forAnalysis = input.duplicate();
+        ByteBuffer forAnalysis = input.duplicate().order(ByteOrder.LITTLE_ENDIAN);
         outputBuffer.put(input);
         outputBuffer.flip();
 
@@ -97,8 +99,10 @@ public class AudioTap implements AudioProcessor {
     private void dispatchFrame() {
         AdDetector      d = detector;
         DetectionLogger l = logger;
+        AudioRecorder   r = recorder;
         if (d != null) d.onAudioFrame(accumBuf, FRAME_SIZE, channelCount, sampleRate);
         if (l != null) l.onAudioFrame(accumBuf, FRAME_SIZE, channelCount, sampleRate, d);
+        if (r != null) r.onAudioFrame(accumBuf, FRAME_SIZE, channelCount, sampleRate);
     }
 
     @Override public void queueEndOfStream() { inputEnded = true; }

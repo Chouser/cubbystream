@@ -61,7 +61,8 @@ public class MainActivity extends AppCompatActivity
     private VolumeMode volumeMode = VolumeMode.AUTO;
 
     // ---- Logging ----
-    private final DetectionLogger logger = new DetectionLogger();
+    private final DetectionLogger logger   = new DetectionLogger();
+    private final AudioRecorder   recorder = new AudioRecorder();
 
     // Convenience accessors so call-sites don't change much
     private MainViewModel.PlayState playState() { return vm.playState; }
@@ -323,6 +324,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onDestroy() {
         logger.close();
+        recorder.close();
         vm.gameday.setListener(null);
         if (bound) {
             unbindService(connection);
@@ -556,6 +558,8 @@ public class MainActivity extends AppCompatActivity
             logger.open(this, currentTitle);
             logger.setVolumeMode(volumeMode.name().toLowerCase());
             service.setLogger(logger);
+            recorder.open(this, currentTitle);
+            service.setRecorder(recorder);
         }
         layoutInfoPanel.setVisibility(View.VISIBLE);
 
@@ -566,6 +570,7 @@ public class MainActivity extends AppCompatActivity
 
     private void stopStream() {
         logger.close();
+        recorder.close();
         // Disarm auto-start: user explicitly stopped, don't re-trigger automatically
         vm.autoStartArmed = false;
         if (bound && service != null) service.stopStream();
@@ -872,10 +877,16 @@ public class MainActivity extends AppCompatActivity
                 logger.open(this, currentTitle);
                 logger.setVolumeMode(volumeMode.name().toLowerCase());
                 service.setLogger(logger);
+                recorder.open(this, currentTitle);
+                service.setRecorder(recorder);
             }
         } else {
-            if (service != null) service.setLogger(null);
+            if (service != null) {
+                service.setLogger(null);
+                service.setRecorder(null);
+            }
             logger.close();
+            recorder.close();
         }
     }
 

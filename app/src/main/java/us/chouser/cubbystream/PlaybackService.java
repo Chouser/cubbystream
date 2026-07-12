@@ -193,6 +193,10 @@ public class PlaybackService extends LifecycleService {
         audioTap.setLogger(logger);
     }
 
+    public void setRecorder(AudioRecorder recorder) {
+        audioTap.setRecorder(recorder);
+    }
+
     public void setAdsVolumePct(int pct) {
         adsVolume = pct / 100f;
         if (isAdBreakVolume) setVolume(adsVolume);
