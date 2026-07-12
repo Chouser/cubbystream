@@ -19,6 +19,7 @@ public final class DetectorRegistry {
 
     /** Ordered list of all available detectors, in spinner display order. */
     public static final List<Entry> ALL = Collections.unmodifiableList(Arrays.asList(
+            new Entry(ClassicMidBandEnergyDetector.ALGORITHM_KEY, ClassicMidBandEnergyDetector::new),
             new Entry(MidBandEnergyDetector.ALGORITHM_KEY, MidBandEnergyDetector::new),
             new Entry(GeneratedDetector.ALGORITHM_KEY, GeneratedDetector::new),
             new Entry(NoOpDetector.ALGORITHM_KEY, NoOpDetector::new)

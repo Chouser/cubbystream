@@ -77,7 +77,7 @@ public class SettingsSheet extends BottomSheetDialogFragment {
     private Button   btnShareLog, btnOpenLogDir, btnDeleteLogs;
 
     // Slider ranges
-    private static final int THRESHOLD_MIN     = 100;
+    private static final int THRESHOLD_MIN     = 0;
     private static final int THRESHOLD_MAX     = 350;
     private static final int POLL_MIN          = 1;
     private static final int POLL_MAX          = 30;
