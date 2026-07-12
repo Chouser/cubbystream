@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
  * via {@link AudioTap}, but does its own full analysis — RMS, FFT, band energies,
  * spectral flatness, flux, PAPR, ZCR — without sharing any intermediate data
  * with the detector.  When it is ready to write a row it queries the detector's
- * current state directly via {@link AdDetector#isInCommercial()}.
+ * current state directly via {@link AdDetector#isInAdBreak()}.
  *
  * <p>Frame delivery ({@link #onAudioFrame}) is called on an audio thread.  File
  * I/O is dispatched to a single-threaded background executor so it never blocks
@@ -151,7 +151,7 @@ public class DetectionLogger {
         float midE  = AudioFrameUtils.bandEnergy(realPart, imagPart,  120, 1800, sampleRate, AudioTap.FRAME_SIZE);
         float highE = AudioFrameUtils.bandEnergy(realPart, imagPart, 1800, 8000, sampleRate, AudioTap.FRAME_SIZE);
 
-        boolean inAds     = detector != null && detector.isInCommercial();
+        boolean inAdBreak  = detector != null && detector.isInAdBreak();
         float   threshold = (detector != null) ? detector.getThreshold() : Float.NaN;
 
         final long   ts         = System.currentTimeMillis();
@@ -164,7 +164,7 @@ public class DetectionLogger {
         final float  fLowE      = lowE;
         final float  fHighE     = highE;
         final float  fThreshold = threshold;
-        final String state      = inAds ? "ads" : "game";
+        final String state      = inAdBreak ? "ads" : "game";
         final String mode       = volumeMode;
         final String title      = streamTitle;
 

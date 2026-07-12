@@ -24,9 +24,9 @@ public class GeneratedDetector implements AdDetector {
     private final AudioFrameUtils.RollingStats energyRoll = new AudioFrameUtils.RollingStats(8);
 
     // ---- Detection state ----
-    private int     belowCount   = 0;
-    private int     aboveCount   = 0;
-    private boolean inCommercial = false;
+    private int     belowCount  = 0;
+    private int     aboveCount  = 0;
+    private boolean inAdBreak   = false;
     private volatile float latestSignal = Float.NaN;
 
     private AdDetector.Listener listener;
@@ -44,10 +44,10 @@ public class GeneratedDetector implements AdDetector {
     }
 
     @Override public void    setListener(AdDetector.Listener l) { this.listener = l; }
-    @Override public boolean isInCommercial() { return inCommercial; }
-    @Override public void    resetCounters()  { belowCount = 0; aboveCount = 0; }
+    @Override public boolean isInAdBreak()   { return inAdBreak; }
+    @Override public void    resetCounters() { belowCount = 0; aboveCount = 0; }
     @Override public void    reset() {
-        belowCount = aboveCount = 0; inCommercial = false; latestSignal = Float.NaN;
+        belowCount = aboveCount = 0; inAdBreak = false; latestSignal = Float.NaN;
     }
 
     @Override
@@ -60,80 +60,78 @@ public class GeneratedDetector implements AdDetector {
         AudioFrameUtils.SpectralStats ss = AudioFrameUtils.spectralStats(re, im, prevMag, FRAME_SIZE);
         energyRoll.push(midE);
         if (!(energyRoll.ready())) return;
-        // predict() returns 1=ADS, 0=GAME; invert so latestSignal is high for GAME, low for ADS,
-        // matching the progress-bar convention (green/high = game, red/low = ads).
-        latestSignal = 1f - (float) predict(energyRoll.std(), energyRoll.mean(), AudioFrameUtils.midHighRatio(midE, highE), AudioFrameUtils.fluxEnergyRatio(ss.flux, midE));
+        latestSignal = (float) predict(energyRoll.std(), energyRoll.mean(), AudioFrameUtils.midHighRatio(midE, highE), AudioFrameUtils.fluxEnergyRatio(ss.flux, midE));
         updateStateMachine(latestSignal);
     }
 
     private static double predict(double energy_std, double energy_mean, double mid_high_ratio, double flux_energy_ratio) {
     if (energy_std <= 7.811619) {
-      return 0; // GAME
+      return 0; // ADS
     } else {
       if (energy_mean <= 247.907581) {
-        return 0; // GAME
+        return 0; // ADS
       } else {
         if (energy_std <= 13.534203) {
           if (mid_high_ratio <= 0.141425) {
-            return 1; // ADS
+            return 1; // GAME
           } else {
             if (flux_energy_ratio <= 10.594752) {
-              return 0; // GAME
+              return 0; // ADS
             } else {
               if (flux_energy_ratio <= 11.058510) {
-                return 1; // ADS
+                return 1; // GAME
               } else {
-                return 0; // GAME
+                return 0; // ADS
               }
             }
           }
         } else {
           if (energy_mean <= 248.350225) {
-            return 1; // ADS
+            return 1; // GAME
           } else {
             if (energy_mean <= 343.512263) {
               if (energy_mean <= 326.370663) {
-                return 0; // GAME
+                return 0; // ADS
               } else {
                 if (energy_mean <= 328.625250) {
-                  return 1; // ADS
+                  return 1; // GAME
                 } else {
                   if (flux_energy_ratio <= 13.704030) {
                     if (energy_mean <= 341.915344) {
                       if (mid_high_ratio <= 0.782231) {
-                        return 1; // ADS
+                        return 1; // GAME
                       } else {
                         if (flux_energy_ratio <= 0.008212) {
-                          return 1; // ADS
+                          return 1; // GAME
                         } else {
                           if (energy_std <= 16.812706) {
-                            return 0; // GAME
+                            return 0; // ADS
                           } else {
                             if (energy_std <= 16.927075) {
-                              return 1; // ADS
+                              return 1; // GAME
                             } else {
                               if (energy_mean <= 335.270162) {
                                 if (energy_std <= 26.046157) {
-                                  return 1; // ADS
+                                  return 1; // GAME
                                 } else {
                                   if (energy_mean <= 329.358906) {
                                     if (energy_mean <= 328.748863) {
-                                      return 0; // GAME
+                                      return 0; // ADS
                                     } else {
-                                      return 1; // ADS
+                                      return 1; // GAME
                                     }
                                   } else {
-                                    return 0; // GAME
+                                    return 0; // ADS
                                   }
                                 }
                               } else {
                                 if (mid_high_ratio <= 3.256177) {
-                                  return 0; // GAME
+                                  return 0; // ADS
                                 } else {
                                   if (energy_mean <= 338.675194) {
-                                    return 0; // GAME
+                                    return 0; // ADS
                                   } else {
-                                    return 1; // ADS
+                                    return 1; // GAME
                                   }
                                 }
                               }
@@ -142,19 +140,19 @@ public class GeneratedDetector implements AdDetector {
                         }
                       }
                     } else {
-                      return 1; // ADS
+                      return 1; // GAME
                     }
                   } else {
                     if (energy_mean <= 330.302894) {
-                      return 0; // GAME
+                      return 0; // ADS
                     } else {
-                      return 1; // ADS
+                      return 1; // GAME
                     }
                   }
                 }
               }
             } else {
-              return 0; // GAME
+              return 0; // ADS
             }
           }
         }
@@ -163,18 +161,18 @@ public class GeneratedDetector implements AdDetector {
     }
 
     private void updateStateMachine(float signal) {
-        // signal is now 1=GAME, 0=ADS (inverted from predict() which returns 1=ADS, 0=GAME)
-        if (signal < 0.5f) {
-            belowCount = 0; aboveCount++;
-            if (!inCommercial && aboveCount >= TRIGGER_FRAMES) {
-                inCommercial = true;
-                mainHandler.post(() -> { if (listener != null) listener.onCommercialDetected(); });
+        // predict() returns 1=GAME, 0=ADS
+        if (signal > 0.5f) {
+            aboveCount = 0; belowCount++;
+            if (inAdBreak && belowCount >= TRIGGER_FRAMES) {
+                inAdBreak = false;
+                mainHandler.post(() -> { if (listener != null) listener.onGameResumed(); });
             }
         } else {
-            aboveCount = 0; belowCount++;
-            if (inCommercial && belowCount >= TRIGGER_FRAMES) {
-                inCommercial = false;
-                mainHandler.post(() -> { if (listener != null) listener.onGameResumed(); });
+            belowCount = 0; aboveCount++;
+            if (!inAdBreak && aboveCount >= TRIGGER_FRAMES) {
+                inAdBreak = true;
+                mainHandler.post(() -> { if (listener != null) listener.onAdBreakStarted(); });
             }
         }
     }

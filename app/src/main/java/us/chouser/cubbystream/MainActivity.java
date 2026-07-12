@@ -58,7 +58,6 @@ public class MainActivity extends AppCompatActivity
     private MainViewModel vm;
 
     // ---- Volume mode ----
-    public enum VolumeMode { AUTO, GAME, ADS }
     private VolumeMode volumeMode = VolumeMode.AUTO;
 
     // ---- Logging ----
@@ -702,15 +701,15 @@ public class MainActivity extends AppCompatActivity
         if (service != null) {
             switch (mode) {
                 case GAME:
-                    service.setCommercialVolume(false);
+                    service.setAdBreakVolume(false);
                     service.resetDetectorCounters();
                     break;
                 case ADS:
-                    service.setCommercialVolume(true);
+                    service.setAdBreakVolume(true);
                     service.resetDetectorCounters();
                     break;
                 case AUTO:
-                    service.setCommercialVolume(service.detectorIsInCommercial());
+                    service.setAdBreakVolume(service.detectorIsInAdBreak());
                     break;
             }
         }
@@ -723,7 +722,7 @@ public class MainActivity extends AppCompatActivity
         btnModeGame.setBackgroundTintList(ColorStateList.valueOf(
                 volumeMode == VolumeMode.GAME ? getColor(R.color.btn_game)       : inactive));
         btnModeAds.setBackgroundTintList(ColorStateList.valueOf(
-                volumeMode == VolumeMode.ADS  ? getColor(R.color.btn_commercial) : inactive));
+                volumeMode == VolumeMode.ADS  ? getColor(R.color.btn_ads)        : inactive));
         btnModeAuto.setBackgroundTintList(ColorStateList.valueOf(
                 volumeMode == VolumeMode.AUTO ? getColor(R.color.btn_auto)       : inactive));
     }
@@ -736,7 +735,7 @@ public class MainActivity extends AppCompatActivity
             case ADS:  label = "Manual: Ads";  break;
             default:
                 String name   = det != null ? det.getDisplayName() : "Auto";
-                boolean inAd  = det != null && det.isInCommercial();
+                boolean inAd  = det != null && det.isInAdBreak();
                 String status = det != null ? det.getStatusText() : null;
                 label = name + ": " + (inAd ? "ads" : "game");
                 if (status != null) label += " — " + status;
@@ -766,7 +765,7 @@ public class MainActivity extends AppCompatActivity
         progressEnergy.setVisibility(android.view.View.VISIBLE);
 
         if (!Float.isNaN(threshold) && threshold > 0) {
-            int pct = (int) Math.min((signal / threshold) * 100f, 100);
+            int pct = (int) Math.min((signal / (2 * threshold)) * 100f, 100);
             progressEnergy.setProgress(pct);
             int color = signal >= threshold ? 0xFF2E7D32 : 0xFFB71C1C;
             progressEnergy.getProgressDrawable().setTint(color);
@@ -809,16 +808,16 @@ public class MainActivity extends AppCompatActivity
     // =========================================================================
 
     @Override
-    public void onCommercialDetected() {
+    public void onAdBreakStarted() {
         if (volumeMode != VolumeMode.AUTO) return;
-        if (service != null) service.setCommercialVolume(true);
+        if (service != null) service.setAdBreakVolume(true);
         runOnUiThread(this::updateModeIndicatorLabel);
     }
 
     @Override
     public void onGameResumed() {
         if (volumeMode != VolumeMode.AUTO) return;
-        if (service != null) service.setCommercialVolume(false);
+        if (service != null) service.setAdBreakVolume(false);
         runOnUiThread(this::updateModeIndicatorLabel);
     }
 

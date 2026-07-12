@@ -55,7 +55,7 @@ public class PlaybackService extends LifecycleService {
     private AdDetector         detector        = new MidBandEnergyDetector();
 
     private String  currentTitle      = "Cubby Stream";
-    private boolean isCommercialVolume = false;
+    private boolean isAdBreakVolume = false;
 
     // -------------------------------------------------------------------------
     // Lifecycle
@@ -139,7 +139,7 @@ public class PlaybackService extends LifecycleService {
     public void playStream(String url, String title, String typeHint) {
         if (player == null) initPlayer();
         currentTitle = title;
-        isCommercialVolume = false;
+        isAdBreakVolume = false;
         player.setVolume(NORMAL_VOLUME);
         player.setMediaItem(MediaItem.fromUri(url));
         player.prepare();
@@ -165,12 +165,12 @@ public class PlaybackService extends LifecycleService {
 
     public void setVolume(float volume) {
         if (player != null) player.setVolume(volume);
-        isCommercialVolume = (volume < NORMAL_VOLUME);
+        isAdBreakVolume = (volume < NORMAL_VOLUME);
     }
 
-    public void setCommercialVolume(boolean commercial) {
-        isCommercialVolume = commercial;
-        setVolume(commercial ? adsVolume : NORMAL_VOLUME);
+    public void setAdBreakVolume(boolean adBreak) {
+        isAdBreakVolume = adBreak;
+        setVolume(adBreak ? adsVolume : NORMAL_VOLUME);
     }
 
     public void setThreshold(int threshold) {
@@ -195,11 +195,11 @@ public class PlaybackService extends LifecycleService {
 
     public void setAdsVolumePct(int pct) {
         adsVolume = pct / 100f;
-        if (isCommercialVolume) setVolume(adsVolume);
+        if (isAdBreakVolume) setVolume(adsVolume);
     }
 
     public boolean isPlaying()         { return player != null && player.isPlaying(); }
-    public boolean isCommercialVolume() { return isCommercialVolume; }
+    public boolean isAdBreakVolume() { return isAdBreakVolume; }
 
     public boolean hasActiveStream() {
         return player != null && player.getMediaItemCount() > 0;
@@ -215,8 +215,8 @@ public class PlaybackService extends LifecycleService {
         if (detector != null) detector.resetCounters();
     }
 
-    public boolean detectorIsInCommercial() {
-        return detector != null && detector.isInCommercial();
+    public boolean detectorIsInAdBreak() {
+        return detector != null && detector.isInAdBreak();
     }
 
     public AdDetector getDetector() { return detector; }

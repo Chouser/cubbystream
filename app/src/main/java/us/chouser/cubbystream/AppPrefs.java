@@ -71,15 +71,15 @@ public class AppPrefs {
      * Returns the persisted volume mode, defaulting to AUTO.
      * Uses the enum's name() string as the stored value.
      */
-    public MainActivity.VolumeMode getVolumeMode() {
-        String name = prefs.getString(KEY_VOLUME_MODE, MainActivity.VolumeMode.AUTO.name());
+    public VolumeMode getVolumeMode() {
+        String name = prefs.getString(KEY_VOLUME_MODE, VolumeMode.AUTO.name());
         try {
-            return MainActivity.VolumeMode.valueOf(name);
+            return VolumeMode.valueOf(name);
         } catch (IllegalArgumentException e) {
-            return MainActivity.VolumeMode.AUTO;
+            return VolumeMode.AUTO;
         }
     }
-    public void setVolumeMode(MainActivity.VolumeMode mode) {
+    public void setVolumeMode(VolumeMode mode) {
         prefs.edit().putString(KEY_VOLUME_MODE, mode.name()).apply();
     }
 }

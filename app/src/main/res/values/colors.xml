@@ -19,7 +19,7 @@
     <color name="btn_live">#FF1565C0</color>       <!-- blue -->
     <color name="btn_stop">#FFB71C1C</color>       <!-- deep red -->
     <color name="btn_game">#FF2E7D32</color>       <!-- green -->
-    <color name="btn_commercial">#FFD32F2F</color> <!-- red -->
+    <color name="btn_ads">#FFD32F2F</color>        <!-- red -->
     <color name="btn_auto">#FF4A148C</color>       <!-- purple -->
     <color name="btn_inactive">#FF555555</color>
 </resources>

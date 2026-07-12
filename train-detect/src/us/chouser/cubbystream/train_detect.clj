@@ -83,7 +83,7 @@
 (defn node-to-java [{:keys [output] :as node} depth]
   (let [indent (apply str (repeat depth "  "))]
     (if output
-      (format "%sreturn %d; // %s" indent output (if (= 1 output) "ADS" "GAME"))
+      (format "%sreturn %d; // %s" indent output (if (= 1 output) "GAME" "ADS"))
       (format "%sif (%s <= %f) {\n%s\n%s} else {\n%s\n%s}"
               indent (:feature node) (:<= node)
               (node-to-java (:true node) (inc depth)) indent
@@ -193,9 +193,9 @@
        (str i4 "// ---- Feature state ----\n"
             field-block "\n\n"))
      i4 "// ---- Detection state ----\n"
-     i4 "private int     belowCount   = 0;\n"
-     i4 "private int     aboveCount   = 0;\n"
-     i4 "private boolean inCommercial = false;\n"
+     i4 "private int     belowCount  = 0;\n"
+     i4 "private int     aboveCount  = 0;\n"
+     i4 "private boolean inAdBreak   = false;\n"
      i4 "private volatile float latestSignal = Float.NaN;\n\n"
      i4 "private AdDetector.Listener listener;\n"
      i4 "private final Handler mainHandler = new Handler(Looper.getMainLooper());\n\n"
@@ -206,13 +206,14 @@
      i4 "@Override public float   getSignalLevel()  { return latestSignal; }\n"
      i4 "@Override public String  getStatusText() {\n"
      i4 "    float s = latestSignal;\n"
-     i4 "    return Float.isNaN(s) ? null : String.format(Locale.US, \"signal %.2f\", s);\n"
+     i4 "    if (Float.isNaN(s)) return null;\n"
+     i4 "    return String.format(Locale.US, \"%s (%.0f%%)\", s >= 0.5f ? \"game\" : \"ads\", s * 100f);\n"
      i4 "}\n\n"
      i4 "@Override public void    setListener(AdDetector.Listener l) { this.listener = l; }\n"
-     i4 "@Override public boolean isInCommercial() { return inCommercial; }\n"
-     i4 "@Override public void    resetCounters()  { belowCount = 0; aboveCount = 0; }\n"
+     i4 "@Override public boolean isInAdBreak()   { return inAdBreak; }\n"
+     i4 "@Override public void    resetCounters() { belowCount = 0; aboveCount = 0; }\n"
      i4 "@Override public void    reset() {\n"
-     i4 "    belowCount = aboveCount = 0; inCommercial = false; latestSignal = Float.NaN;\n"
+     i4 "    belowCount = aboveCount = 0; inAdBreak = false; latestSignal = Float.NaN;\n"
      i4 "}\n\n"
      i4 "@Override\n"
      i4 "public void onAudioFrame(float[] samples, int frameSize, int channelCount, int sampleRate) {\n"
@@ -222,18 +223,18 @@
      (node-to-java node 2) "\n"
      i4 "}\n\n"
      i4 "private void updateStateMachine(float signal) {\n"
-     i8 "// predict() returns 1=ADS, 0=GAME\n"
+     i8 "// predict() returns 1=GAME, 0=ADS\n"
      i8 "if (signal > 0.5f) {\n"
-     i8 "    belowCount = 0; aboveCount++;\n"
-     i8 "    if (!inCommercial && aboveCount >= TRIGGER_FRAMES) {\n"
-     i8 "        inCommercial = true;\n"
-     i8 "        mainHandler.post(() -> { if (listener != null) listener.onCommercialDetected(); });\n"
+     i8 "    aboveCount = 0; belowCount++;\n"
+     i8 "    if (inAdBreak && belowCount >= TRIGGER_FRAMES) {\n"
+     i8 "        inAdBreak = false;\n"
+     i8 "        mainHandler.post(() -> { if (listener != null) listener.onGameResumed(); });\n"
      i8 "    }\n"
      i8 "} else {\n"
-     i8 "    aboveCount = 0; belowCount++;\n"
-     i8 "    if (inCommercial && belowCount >= TRIGGER_FRAMES) {\n"
-     i8 "        inCommercial = false;\n"
-     i8 "        mainHandler.post(() -> { if (listener != null) listener.onGameResumed(); });\n"
+     i8 "    belowCount = 0; aboveCount++;\n"
+     i8 "    if (!inAdBreak && aboveCount >= TRIGGER_FRAMES) {\n"
+     i8 "        inAdBreak = true;\n"
+     i8 "        mainHandler.post(() -> { if (listener != null) listener.onAdBreakStarted(); });\n"
      i8 "    }\n"
      i8 "}\n"
      i4 "}\n"
@@ -293,7 +294,7 @@
                          fix-user-latency
                          clean-short-spans
                          add-features
-                         (tc/map-columns :volume_mode (fn [v] (if (= v "ads") 1 0)))
+                         (tc/map-columns :volume_mode (fn [v] (if (= v "game") 1 0)))
                          ;; Fix 2: Isolate ONLY the target and training features
                          (tc/select-columns (conj feature-keys :volume_mode))
                          (ds-mod/set-inference-target :volume_mode))

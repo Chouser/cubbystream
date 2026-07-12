@@ -4,7 +4,7 @@ import java.util.Locale;
 
 /**
  * An {@link AdDetector} that performs no ad/game detection and never triggers
- * commercial or game-resumed events.
+ * ad-break or game-resumed events.
  *
  * <p>Users who want to hear the full stream without any automatic volume changes
  * can select this algorithm in the settings panel.  The logger, if enabled,
@@ -36,9 +36,9 @@ public class NoOpDetector implements AdDetector {
     }
 
     @Override public void setListener(AdDetector.Listener listener) { /* ignored */ }
-    @Override public boolean isInCommercial() { return false; }
-    @Override public void resetCounters()     { /* nothing */ }
-    @Override public void reset()             { latestRms = Float.NaN; }
+    @Override public boolean isInAdBreak()  { return false; }
+    @Override public void resetCounters()   { /* nothing */ }
+    @Override public void reset()           { latestRms = Float.NaN; }
 
     @Override
     public void onAudioFrame(float[] samples, int frameSize, int channelCount, int sampleRate) {

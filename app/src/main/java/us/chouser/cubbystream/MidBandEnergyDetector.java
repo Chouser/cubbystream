@@ -12,7 +12,7 @@ import java.util.Locale;
  * runs an FFT, smooths the mid-band (120–1800 Hz) energy over a rolling window,
  * and compares the result against a configurable threshold.  When the smoothed
  * value drops below the threshold for {@link #TRIGGER_FRAMES} consecutive frames
- * the detector declares a commercial; when it rises back above for the same
+ * the detector declares an ad break; when it rises back above for the same
  * count it declares that the game has resumed.
  *
  * <p>Only the computation needed for the decision is done here.  Richer
@@ -47,9 +47,9 @@ public class MidBandEnergyDetector implements AdDetector {
     private volatile float latestSignal = Float.NaN;
 
     // ---- State machine ----
-    private int     belowCount   = 0;
-    private int     aboveCount   = 0;
-    private boolean inCommercial = false;
+    private int     belowCount  = 0;
+    private int     aboveCount  = 0;
+    private boolean inAdBreak   = false;
 
     // =========================================================================
     // AdDetector
@@ -69,7 +69,7 @@ public class MidBandEnergyDetector implements AdDetector {
     }
 
     @Override public void setListener(AdDetector.Listener listener) { this.listener = listener; }
-    @Override public boolean isInCommercial() { return inCommercial; }
+    @Override public boolean isInAdBreak() { return inAdBreak; }
 
     @Override public void resetCounters() { belowCount = 0; aboveCount = 0; }
 
@@ -78,7 +78,7 @@ public class MidBandEnergyDetector implements AdDetector {
         belowCount = aboveCount = smoothIdx = 0;
         smoothSum    = 0f;
         latestSignal = Float.NaN;
-        inCommercial = false;
+        inAdBreak    = false;
         for (int i = 0; i < SMOOTH_FRAMES; i++) smoothBuf[i] = 0f;
     }
 
@@ -107,14 +107,14 @@ public class MidBandEnergyDetector implements AdDetector {
     private void updateStateMachine(float avg) {
         if (avg < threshold) {
             belowCount++; aboveCount = 0;
-            if (!inCommercial && belowCount >= TRIGGER_FRAMES) {
-                inCommercial = true;
-                mainHandler.post(() -> { if (listener != null) listener.onCommercialDetected(); });
+            if (!inAdBreak && belowCount >= TRIGGER_FRAMES) {
+                inAdBreak = true;
+                mainHandler.post(() -> { if (listener != null) listener.onAdBreakStarted(); });
             }
         } else {
             aboveCount++; belowCount = 0;
-            if (inCommercial && aboveCount >= TRIGGER_FRAMES) {
-                inCommercial = false;
+            if (inAdBreak && aboveCount >= TRIGGER_FRAMES) {
+                inAdBreak = false;
                 mainHandler.post(() -> { if (listener != null) listener.onGameResumed(); });
             }
         }

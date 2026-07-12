@@ -21,11 +21,11 @@ public interface AdDetector {
 
     /** Callbacks fired on the main thread when detection state changes. */
     interface Listener {
-        void onCommercialDetected();
+        void onAdBreakStarted();
         void onGameResumed();
     }
 
-    /** Set the listener that receives commercial/game transition events. */
+    /** Set the listener that receives ad-break/game transition events. */
     void setListener(Listener listener);
 
     /**
@@ -43,8 +43,8 @@ public interface AdDetector {
      */
     void onAudioFrame(float[] samples, int frameSize, int channelCount, int sampleRate);
 
-    /** @return true when the detector currently believes a commercial is playing. */
-    boolean isInCommercial();
+    /** @return true when the detector currently believes an ad break is playing. */
+    boolean isInAdBreak();
 
     /**
      * Reset internal consecutive-frame counters.  Call when the user manually
