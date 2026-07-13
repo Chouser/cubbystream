@@ -56,18 +56,14 @@
 ;; --- Feature Engineering ---
 
 (defn add-features [ds]
-  (let [;; 1. Compute rolling windows first
-        rolled-ds (ds-roll/rolling ds 8 {:energy_mean (ds-roll/mean :energy)
-                                         :energy_std  (ds-roll/standard-deviation :energy)})]
-    (-> rolled-ds
-        ;; 2. Explicitly extract columns for the mathematical operations
-        (tc/add-columns
-         {:mid_high_ratio (tcc// (rolled-ds :mid_band) 
-                                 (tcc/max (rolled-ds :high_band) 1.0))
-          :flux_energy_ratio (tcc// (rolled-ds :flux) 
-                                    (tcc/max (rolled-ds :energy) 1.0))})
-        ;; 3. Trim window warmup padding
-        (tc/drop-rows (range 8)))))
+  (-> ds
+      (tc/add-columns
+       {:mid_high_ratio     (tcc// (ds :mid_band)
+                                   (tcc/max (ds :high_band) 1.0))
+        :classic_high_ratio (tcc// (ds :mid_band_classic)
+                                   (tcc/max (ds :high_band) 1.0))
+        :flux_energy_ratio  (tcc// (ds :flux)
+                                   (tcc/max (ds :mid_band_classic) 1.0))})))
 
 ;; --- Java Source Generation ---
 
@@ -95,29 +91,72 @@
 ;;   :var         — Java expression yielding the feature value for predict()
 ;;   :ready-check — Java boolean expression; nil if no warm-up needed
 (def feature-meta
-  {"energy_mean"
-   {:fields      ["private final AudioFrameUtils.RollingStats energyRoll = new AudioFrameUtils.RollingStats(8);"]
-    :update      ["energyRoll.push(midE);"]
-    :var         "energyRoll.mean()"
-    :ready-check "energyRoll.ready()"}
+  ;; Features that come pre-windowed from the logger (40-frame window).
+  ;; In GeneratedDetector these are computed over a matching rolling window.
+  "mid_band_classic"
+  {:fields      ["private final AudioFrameUtils.RollingStats classicRoll = new AudioFrameUtils.RollingStats(40);"
+                 "private final float[] classicSwapBuf = new float[AudioTap.FRAME_SIZE];"]
+   :update      ["ClassicMidBandEnergyDetector.byteSwapMono(monoBuf, classicSwapBuf, AudioTap.FRAME_SIZE);"
+                 "AudioFrameUtils.hannWindow(classicSwapBuf, classicRe, classicIm, AudioTap.FRAME_SIZE);"
+                 "AudioFrameUtils.fft(classicRe, classicIm, AudioTap.FRAME_SIZE);"
+                 "float classicMidE = AudioFrameUtils.bandEnergy(classicRe, classicIm, 120, 1800, sampleRate, AudioTap.FRAME_SIZE);"
+                 "classicRoll.push(classicMidE);"]
+   :var         "classicRoll.mean()"
+   :ready-check "classicRoll.ready()"}
 
-   "energy_std"
-   {:fields      ["private final AudioFrameUtils.RollingStats energyRoll = new AudioFrameUtils.RollingStats(8);"]
-    :update      ["energyRoll.push(midE);"]   ; deduped with energy_mean if both present
-    :var         "energyRoll.std()"
-    :ready-check "energyRoll.ready()"}
+  "mid_band"
+  {:fields      ["private final AudioFrameUtils.RollingStats midRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["midRoll.push(midE);"]
+   :var         "midRoll.mean()"
+   :ready-check "midRoll.ready()"}
 
-   "mid_high_ratio"
-   {:fields      []
-    :update      []
-    :var         "AudioFrameUtils.midHighRatio(midE, highE)"
-    :ready-check nil}
+  "classic_high_ratio"
+  {:fields      []
+   :update      []
+   :var         "AudioFrameUtils.midHighRatio(classicMidE, highE)"
+   :ready-check nil}
 
-   "flux_energy_ratio"
-   {:fields      []
-    :update      []
-    :var         "AudioFrameUtils.fluxEnergyRatio(ss.flux, midE)"
-    :ready-check nil}})
+  "mid_high_ratio"
+  {:fields      []
+   :update      []
+   :var         "AudioFrameUtils.midHighRatio(midE, highE)"
+   :ready-check nil}
+
+  "flux_energy_ratio"
+  {:fields      []
+   :update      []
+   :var         "AudioFrameUtils.fluxEnergyRatio(ss.flux, classicMidE)"
+   :ready-check nil}
+
+  "low_band"
+  {:fields      ["private final AudioFrameUtils.RollingStats lowRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["lowRoll.push(lowE);"]
+   :var         "lowRoll.mean()"
+   :ready-check "lowRoll.ready()"}
+
+  "high_band"
+  {:fields      ["private final AudioFrameUtils.RollingStats highRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["highRoll.push(highE);"]
+   :var         "highRoll.mean()"
+   :ready-check "highRoll.ready()"}
+
+  "total_volume"
+  {:fields      ["private final AudioFrameUtils.RollingStats rmsRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["rmsRoll.push(AudioFrameUtils.rms(monoBuf, AudioTap.FRAME_SIZE));"]
+   :var         "rmsRoll.mean()"
+   :ready-check "rmsRoll.ready()"}
+
+  "flatness"
+  {:fields      ["private final AudioFrameUtils.RollingStats flatRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["flatRoll.push(ss.flatness);"]
+   :var         "flatRoll.mean()"
+   :ready-check "flatRoll.ready()"}
+
+  "zcr"
+  {:fields      ["private final AudioFrameUtils.RollingStats zcrRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["zcrRoll.push(AudioFrameUtils.zcr(monoBuf, AudioTap.FRAME_SIZE, lastSample));"]
+   :var         "zcrRoll.mean()"
+   :ready-check "zcrRoll.ready()"})
 
 (defn generate-java
   "Emit a complete AdDetector implementation for the given decision tree.
@@ -288,7 +327,8 @@
 
 (defn train-pipeline [csv-dir]
   (println "Training...")
-  (let [feature-keys [:energy_mean :energy_std :mid_high_ratio :flux_energy_ratio]
+  (let [feature-keys [:mid_band_classic :mid_band :classic_high_ratio :mid_high_ratio
+                      :flux_energy_ratio :low_band :high_band :total_volume :flatness :zcr]
         feature-strings (map name feature-keys)
         processed-ds (-> (read-ds csv-dir)
                          fix-user-latency

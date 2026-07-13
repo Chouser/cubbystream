@@ -26,20 +26,25 @@ public class ClassicMidBandEnergyDetector extends MidBandEnergyDetector {
     public void onAudioFrame(float[] samples, int frameSize, int channelCount, int sampleRate) {
         int total = frameSize * channelCount;
         if (swappedSamples.length < total) swappedSamples = new float[total];
-
-        // Re-swap the bytes of each sample to undo the correct little-endian
-        // interpretation and restore the old scrambled values.
-        // AudioTap converts: raw bytes → getShort() → float.
-        // The old code read LE bytes as BE shorts, which is the same as reading
-        // the correct short and then swapping its two bytes.
-        for (int i = 0; i < total; i++) {
-            // Convert float back to the short it came from (undo the /32768 scale)
-            short correct = (short) Math.round(samples[i] * 32768f);
-            // Swap the two bytes, as the old big-endian getShort() would have produced
-            short scrambled = (short) (((correct & 0xFF) << 8) | ((correct >> 8) & 0xFF));
-            swappedSamples[i] = scrambled / 32768f;
-        }
-
+        byteSwapSamples(samples, swappedSamples, total);
         super.onAudioFrame(swappedSamples, frameSize, channelCount, sampleRate);
+    }
+
+    /**
+     * Swap the two bytes of each sample's underlying 16-bit value, replicating
+     * the old big-endian getShort() mis-read on little-endian PCM data.
+     * Exposed as a static so {@link DetectionLogger} and GeneratedDetector can
+     * use the same transformation without duplicating it.
+     *
+     * @param src   source float samples in [-1, 1]
+     * @param dst   destination array (may be the same as src)
+     * @param count number of samples to process
+     */
+    static void byteSwapSamples(float[] src, float[] dst, int count) {
+        for (int i = 0; i < count; i++) {
+            short correct   = (short) Math.round(src[i] * 32768f);
+            short scrambled = (short) (((correct & 0xFF) << 8) | ((correct >> 8) & 0xFF));
+            dst[i] = scrambled / 32768f;
+        }
     }
 }
