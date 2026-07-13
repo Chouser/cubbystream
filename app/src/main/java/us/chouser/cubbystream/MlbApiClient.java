@@ -94,6 +94,14 @@ public class MlbApiClient {
     private long   nextGameStartMs = 0;
     private String nextGameUrl     = null;
 
+    // Transient network hiccups (DNS blips, brief connectivity loss — common
+    // when backgrounded) are common and self-heal on the next poll. Only
+    // surface an error to the user after several in a row, and only
+    // occasionally after that, rather than toasting on every single failure.
+    private int consecutiveNetworkFailures = 0;
+    private static final int FAILURE_NOTIFY_THRESHOLD = 3;
+    private static final int FAILURE_NOTIFY_REPEAT_EVERY = 30;
+
     private ScheduledFuture<?> pollFuture;
     private ScheduledFuture<?> resolveFuture;
     private boolean running = false;
@@ -197,7 +205,7 @@ public class MlbApiClient {
             String url = BASE + "/api/v1/schedule?sportId=1&teamId=" + teamId
                     + "&startDate=" + startDate + "&endDate=" + endDate
                     + "&hydrate=team";
-            String body = get(url);
+            String body = get(url, "Schedule");
             if (body == null) return;
 
             List<JSONObject> games = flattenGames(body);
@@ -318,7 +326,7 @@ public class MlbApiClient {
                     + "&endDate="   + endDate
                     + "&hydrate=team";
 
-            String body = get(url);
+            String body = get(url, "Schedule");
             if (body == null) {
                 nextGameStartMs = 0;
                 nextGameUrl     = null;
@@ -401,7 +409,7 @@ public class MlbApiClient {
                 + "boxscore,players,stats,pitching,pitchesThrown,"
                 + "datetime,dateTime,officialDate,postOnFirst,postOnSecond,postOnThird";
         try {
-            String body = get(url);
+            String body = get(url, "Live feed");
             if (body == null || !running) return;
 
             GameState state = parseLiveFeed(body);
@@ -547,15 +555,47 @@ public class MlbApiClient {
         }
     }
 
-    /** Synchronous HTTP GET — must be called off the main thread. */
-    private String get(String url) throws IOException {
+    /**
+     * Synchronous HTTP GET — must be called off the main thread. Returns null
+     * on any failure (network or non-2xx); the failure itself is recorded via
+     * recordFailure() rather than thrown, so all three call sites (schedule
+     * resolution, next-game lookahead, live feed polling) get the same
+     * throttled error-reporting behavior for free.
+     *
+     * @param label short description used in a surfaced error message, e.g.
+     *              "Live feed" or "Schedule" — purely for the person reading it.
+     */
+    private String get(String url, String label) {
         Request req = new Request.Builder().url(url).build();
         try (Response resp = http.newCall(req).execute()) {
             if (!resp.isSuccessful()) {
-                deliver(() -> listener.onError("HTTP " + resp.code() + " from " + url));
+                int code = resp.code();
+                recordFailure(label, "HTTP " + code);
                 return null;
             }
+            recordSuccess();
             return resp.body() != null ? resp.body().string() : null;
+        } catch (IOException e) {
+            // Includes UnknownHostException ("Unable to resolve host ...") — the
+            // common, usually-transient case when backgrounded, connectivity
+            // is switching, or the radio is briefly asleep.
+            recordFailure(label, e.getMessage());
+            return null;
+        }
+    }
+
+    private void recordSuccess() {
+        consecutiveNetworkFailures = 0;
+    }
+
+    private void recordFailure(String label, String detail) {
+        consecutiveNetworkFailures++;
+        Log.w(TAG, label + " request failed (" + consecutiveNetworkFailures
+                + " in a row): " + detail);
+        boolean shouldNotify = consecutiveNetworkFailures == FAILURE_NOTIFY_THRESHOLD
+                || consecutiveNetworkFailures % FAILURE_NOTIFY_REPEAT_EVERY == 0;
+        if (shouldNotify) {
+            deliver(() -> listener.onError(label + " error: " + detail));
         }
     }
 

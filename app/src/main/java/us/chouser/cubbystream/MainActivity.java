@@ -69,6 +69,10 @@ public class MainActivity extends AppCompatActivity
 
     // ---- TV / Fire TV ----
     private boolean isTv = false;
+    // Toggled in onResume()/onStop(). Used to suppress background error toasts —
+    // a Toast popping up over whatever app the person is actually using is far
+    // more disruptive than a background network hiccup is informative.
+    private boolean isForeground = false;
 
     // ---- Audio views ----
     private Spinner      spinnerStream;
@@ -215,6 +219,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        isForeground = true;
         if (bound && service != null) {
             service.setPlaybackListener(this);
             service.setDetectionListener(this);
@@ -226,6 +231,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onStop() {
         super.onStop();
+        isForeground = false;
         uiPoller.removeCallbacks(uiPollRunnable);
         if (isTv && vm.playState != MainViewModel.PlayState.STOPPED) {
             stopStream();
@@ -844,6 +850,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onError(String message) {
+        if (!isForeground) return; // don't pop a toast over whatever app the person is using
         runOnUiThread(() ->
                 Toast.makeText(this, "Error: " + message, Toast.LENGTH_LONG).show());
     }
