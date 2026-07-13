@@ -20,7 +20,7 @@ public class GamedayController {
 
     public interface Listener {
         void onGameStateApplied(GameState state);
-        void onNoGame(String reason, String gamedayUrl);
+        void onNoGame(String reason, long nextGameStartMs, String gamedayUrl);
         void onError(String message);
     }
 
@@ -32,6 +32,7 @@ public class GamedayController {
     private Listener listener;
     private GameState lastDeliveredState = null;
     private String    lastNoGameReason   = null;
+    private long      lastNoGameStartMs  = 0L;
     private String    lastNoGameUrl      = null;
 
     /**
@@ -45,7 +46,7 @@ public class GamedayController {
         if (lastDeliveredState != null) {
             listener.onGameStateApplied(lastDeliveredState);
         } else if (lastNoGameReason != null) {
-            listener.onNoGame(lastNoGameReason, lastNoGameUrl);
+            listener.onNoGame(lastNoGameReason, lastNoGameStartMs, lastNoGameUrl);
         }
     }
     private long     baseDelayMs  = 20_000L; // configurable; default 20s
@@ -70,11 +71,12 @@ public class GamedayController {
 
         apiClient.start(teamId, pollIntervalSec, new MlbApiClient.Listener() {
             @Override public void onGameState(GameState state) { enqueue(state); }
-            @Override public void onNoGame(String reason, String gamedayUrl) {
+            @Override public void onNoGame(String reason, long nextGameStartMs, String gamedayUrl) {
                 lastNoGameReason   = reason;
+                lastNoGameStartMs  = nextGameStartMs;
                 lastNoGameUrl      = gamedayUrl;
                 lastDeliveredState = null;
-                if (listener != null) listener.onNoGame(reason, gamedayUrl);
+                if (listener != null) listener.onNoGame(reason, nextGameStartMs, gamedayUrl);
             }
             @Override public void onError(String message)      { if (listener != null) listener.onError(message); }
         });
@@ -88,6 +90,7 @@ public class GamedayController {
         history.clear();
         lastDeliveredState = null;
         lastNoGameReason   = null;
+        lastNoGameStartMs  = 0L;
         lastNoGameUrl      = null;
         listener           = null;
     }

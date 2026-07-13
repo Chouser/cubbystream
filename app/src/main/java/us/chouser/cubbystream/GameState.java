@@ -49,6 +49,16 @@ public class GameState {
     // Abstract game state
     public final String abstractGameState; // "Live", "Final", "Preview"
 
+    // Scheduled first-pitch time for THIS game (epoch ms, UTC instant). 0 if unknown.
+    public final long scheduledStartMs;
+
+    // Only meaningful when abstractGameState == "Final": the next scheduled
+    // game's first-pitch time and Gameday URL, so the UI can tell the person
+    // when to come back without them having to relaunch the app. 0/null when
+    // not applicable or not yet known.
+    public final long   nextGameStartMs;
+    public final String nextGameUrl;
+
     public GameState(
             long fetchTimeMs,
             String awayTeamAbbrev, String homeTeamAbbrev,
@@ -62,7 +72,9 @@ public class GameState {
             String awayTeamSlug, String homeTeamSlug,
             String gameDate,
             int awayTeamId, int homeTeamId,
-            String abstractGameState) {
+            String abstractGameState,
+            long scheduledStartMs,
+            long nextGameStartMs, String nextGameUrl) {
         this.fetchTimeMs = fetchTimeMs;
         this.awayTeamAbbrev = awayTeamAbbrev;
         this.homeTeamAbbrev = homeTeamAbbrev;
@@ -89,6 +101,9 @@ public class GameState {
         this.awayTeamId = awayTeamId;
         this.homeTeamId = homeTeamId;
         this.abstractGameState = abstractGameState;
+        this.scheduledStartMs = scheduledStartMs;
+        this.nextGameStartMs = nextGameStartMs;
+        this.nextGameUrl = nextGameUrl;
     }
 
     /** Returns the display time for this snapshot given a total delay in ms. */

@@ -607,6 +607,23 @@ public class MainActivity extends AppCompatActivity
         // TODO: clear logos on scoreboard and field.
     }
 
+    /**
+     * Clears the in-game-only details (bases, batter/pitcher) without touching
+     * team abbreviations/scores/logos — used for Preview (not started yet) and
+     * Final (already over) states, where the matchup and score are still
+     * meaningful but the live at-bat details are not.
+     */
+    private void clearLiveDetails() {
+        base1.setImageResource(R.drawable.base_diamond_empty);
+        base2.setImageResource(R.drawable.base_diamond_empty);
+        base3.setImageResource(R.drawable.base_diamond_empty);
+        textBase1.setText("");
+        textBase2.setText("");
+        textBase3.setText("");
+        textPitcherName.setText("");
+        textBatterName.setText("");
+    }
+
     // =========================================================================
     // GamedayController.Listener
     // =========================================================================
@@ -630,49 +647,72 @@ public class MainActivity extends AppCompatActivity
         textAwayScore.setText(String.format("%d", state.awayScore));
         textHomeScore.setText(String.format("%d", state.homeScore));
 
-        // Inning / outs / count
-        String half = state.isTopInning ? "▲" : "▼";
-        String outs    = repeat("●", state.outs)    + repeat("○", Math.max(0, 3 - state.outs));
-        textCountOuts.setText(String.format("%s %d\nouts: %s\n%d - %d",
-            half, state.inning, outs, state.balls, state.strikes));
-
-        // Base runners
-        base1.setImageResource(state.runnerOnFirst  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
-        base2.setImageResource(state.runnerOnSecond ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
-        base3.setImageResource(state.runnerOnThird  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
-        textBase1.setText(state.runnerNameFirst  != null ? state.runnerNameFirst  : "");
-        textBase2.setText(state.runnerNameSecond != null ? state.runnerNameSecond : "");
-        textBase3.setText(state.runnerNameThird  != null ? state.runnerNameThird  : "");
-
-        // Players
-        if (state.pitcherName != null) {
-            String pitcherLabel = state.pitcherPitchesThrown > 0
-                    ? state.pitcherName + "\npitches: " + state.pitcherPitchesThrown
-                    : state.pitcherName;
-            textPitcherName.setText(pitcherLabel);
-        } else {
-            textPitcherName.setText("");
-        }
-        textBatterName.setText(state.batterName   != null ? state.batterName  : "");
-
-        // Logos
+        // Logos (always shown once we know the matchup, regardless of state)
         TeamLogoLoader.load(state.awayTeamAbbrev, imgAwayLogo);
         TeamLogoLoader.load(state.homeTeamAbbrev, imgHomeLogo);
 
-        if (state.isTopInning) {
-            TeamLogoLoader.load(state.awayTeamAbbrev, imgBatterLogo);
-            TeamLogoLoader.load(state.homeTeamAbbrev, imgPitcherLogo);
-        }
-        else {
-            TeamLogoLoader.load(state.awayTeamAbbrev, imgPitcherLogo);
-            TeamLogoLoader.load(state.homeTeamAbbrev, imgBatterLogo);
+        if ("Final".equalsIgnoreCase(state.abstractGameState)) {
+            String label = "Final";
+            if (state.scheduledStartMs > 0) {
+                label += " " + GameTimeFormat.formatDateOnly(state.scheduledStartMs);
+            }
+            if (state.nextGameStartMs > 0) {
+                label += "\nNext: " + GameTimeFormat.formatSmart(state.nextGameStartMs);
+            }
+            textCountOuts.setText(label);
+            clearLiveDetails();
+
+        } else if ("Preview".equalsIgnoreCase(state.abstractGameState)) {
+            String when = state.scheduledStartMs > 0
+                    ? "First pitch\n" + GameTimeFormat.formatSmart(state.scheduledStartMs)
+                    : "Game hasn't started";
+            textCountOuts.setText(when);
+            clearLiveDetails();
+
+        } else {
+            // Live (or any other in-progress state) — existing formatting
+            String half = state.isTopInning ? "▲" : "▼";
+            String outs = repeat("●", state.outs) + repeat("○", Math.max(0, 3 - state.outs));
+            textCountOuts.setText(String.format("%s %d\nouts: %s\n%d - %d",
+                half, state.inning, outs, state.balls, state.strikes));
+
+            // Base runners
+            base1.setImageResource(state.runnerOnFirst  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
+            base2.setImageResource(state.runnerOnSecond ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
+            base3.setImageResource(state.runnerOnThird  ? R.drawable.base_diamond : R.drawable.base_diamond_empty);
+            textBase1.setText(state.runnerNameFirst  != null ? state.runnerNameFirst  : "");
+            textBase2.setText(state.runnerNameSecond != null ? state.runnerNameSecond : "");
+            textBase3.setText(state.runnerNameThird  != null ? state.runnerNameThird  : "");
+
+            // Players
+            if (state.pitcherName != null) {
+                String pitcherLabel = state.pitcherPitchesThrown > 0
+                        ? state.pitcherName + "\npitches: " + state.pitcherPitchesThrown
+                        : state.pitcherName;
+                textPitcherName.setText(pitcherLabel);
+            } else {
+                textPitcherName.setText("");
+            }
+            textBatterName.setText(state.batterName != null ? state.batterName : "");
+
+            if (state.isTopInning) {
+                TeamLogoLoader.load(state.awayTeamAbbrev, imgBatterLogo);
+                TeamLogoLoader.load(state.homeTeamAbbrev, imgPitcherLogo);
+            } else {
+                TeamLogoLoader.load(state.awayTeamAbbrev, imgPitcherLogo);
+                TeamLogoLoader.load(state.homeTeamAbbrev, imgBatterLogo);
+            }
         }
     }
 
     @Override
-    public void onNoGame(String reason, String gamedayUrl) {
+    public void onNoGame(String reason, long nextGameStartMs, String gamedayUrl) {
         vm.currentGamedayUrl = gamedayUrl; // may be null in offseason
-        showGamedayPlaceholder(reason);
+        String message = reason;
+        if (nextGameStartMs > 0) {
+            message += "\nNext game: " + GameTimeFormat.formatDateAndTime(nextGameStartMs);
+        }
+        showGamedayPlaceholder(message);
     }
 
     private static String repeat(String s, int n) {
