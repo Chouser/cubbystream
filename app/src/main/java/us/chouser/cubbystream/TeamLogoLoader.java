@@ -9,6 +9,8 @@ import android.widget.ImageView;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -23,6 +25,25 @@ import okhttp3.Response;
 public class TeamLogoLoader {
 
     private static final String LOGO_URL = "https://a.espncdn.com/i/teamlogos/mlb/100/%s.png";
+
+    /**
+     * The MLB Stats API's "abbreviation" field mostly matches the slug ESPN
+     * uses for its logo CDN once lowercased, but a few teams differ. This
+     * maps MLB API abbreviation (uppercase) -> ESPN logo slug (lowercase).
+     * Anything not listed here just falls back to teamAbbr.toLowerCase().
+     */
+    private static final Map<String, String> MLB_TO_ESPN_SLUG = new HashMap<>();
+    static {
+        MLB_TO_ESPN_SLUG.put("CWS", "chw"); // White Sox: MLB "CWS" vs ESPN "chw"
+        MLB_TO_ESPN_SLUG.put("OAK", "ath"); // Athletics: MLB may still say "OAK"; ESPN uses "ath"
+        MLB_TO_ESPN_SLUG.put("ATH", "ath"); // Athletics: identity, listed for clarity
+    }
+
+    private static String espnSlug(String mlbAbbrev) {
+        String upper = mlbAbbrev.toUpperCase();
+        String override = MLB_TO_ESPN_SLUG.get(upper);
+        return override != null ? override : mlbAbbrev.toLowerCase();
+    }
 
     private static final LruCache<String, Bitmap> cache = new LruCache<String, Bitmap>(20) {
         @Override
@@ -50,7 +71,7 @@ public class TeamLogoLoader {
         }
 
         exec.execute(() -> {
-            String url = String.format(LOGO_URL, teamAbbr.toLowerCase());
+            String url = String.format(LOGO_URL, espnSlug(teamAbbr));
             try {
                 Request req = new Request.Builder().url(url).build();
                 try (Response resp = http.newCall(req).execute()) {
