@@ -24,7 +24,7 @@ import okhttp3.Response;
 public class FeedFetcher {
 
     /** Default feed URL — also used as the SharedPreferences default in AppPrefs. */
-    public static final String FEED_URL = "https://chouser.us/streams.json";
+    public static final String FEED_URL = "https://chouser.us/cubbystream-config.json";
 
     public interface Callback {
         void onSuccess(StreamFeed feed);

@@ -51,7 +51,7 @@ To upgrade to AGP 8.x in future: switch to `mingc/android-build-box` (JDK 17), b
 
 Open `FeedFetcher.java` and change:
 ```java
-public static final String FEED_URL = "https://myserver.com/streams.json";
+public static final String FEED_URL = "https://myserver.com/cubbystream-config.json";
 ```
 to your actual server address.
 
@@ -64,29 +64,42 @@ Your server must return `Content-Type: application/json` with this structure:
 ```json
 {
   "updated": "2026-04-29T18:00:00Z",
+  "mlbApiBase": "https://statsapi.mlb.com",
+  "logoUrlPattern": "https://a.espncdn.com/i/teamlogos/mlb/100/%s.png",
   "streams": [
     {
       "title": "Yankees vs Red Sox",
       "subtitle": "ESPN Radio • 7:05 PM ET",
-      "url": "https://example.com/yankees.m3u8"
+      "url": "https://example.com/yankees.m3u8",
+      "teamId": 147
     },
     {
       "title": "Cubs vs Cardinals",
       "subtitle": "670 The Score",
       "url": "https://stream.example.com/cubs.mp3",
-      "type": "mp3"
+      "type": "mp3",
+      "teamId": 112
     }
   ]
 }
 ```
 
-**Fields:**
+**Top-level fields:**
+| Field | Required | Notes |
+|-------|----------|-------|
+| `updated` | No | Informational; shown as a toast on load |
+| `mlbApiBase` | No | Overrides the MLB Stats API host used for gameday data. Defaults to `https://statsapi.mlb.com` if omitted/blank — set this only if that host ever changes or goes away |
+| `logoUrlPattern` | No | Overrides the team-logo image URL pattern. Must contain one `%s` placeholder for the team slug. Defaults to ESPN's CDN if omitted/blank |
+| `streams` | Yes | The list of stream entries below |
+
+**Per-stream fields:**
 | Field | Required | Notes |
 |-------|----------|-------|
 | `title` | Yes | Shown in spinner and info panel |
 | `subtitle` | No | Secondary info (broadcaster, time) |
 | `url` | Yes | The stream URL |
 | `type` | No | `hls`, `mp3`, `aac`, `ogg` — omit and ExoPlayer auto-detects |
+| `teamId` | No | MLB team ID (e.g. `112` for the Cubs). When present, enables live gameday polling/overlay for that stream |
 
 **Supported stream formats (auto-detected):**
 - HLS (`.m3u8`) — live streams, best for "skip to live"

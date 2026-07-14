@@ -24,7 +24,18 @@ import okhttp3.Response;
  */
 public class TeamLogoLoader {
 
-    private static final String LOGO_URL = "https://a.espncdn.com/i/teamlogos/mlb/100/%s.png";
+    // Configurable at runtime via setLogoUrlPattern() (typically from the feed's
+    // "logoUrlPattern" field) so the app can be repointed at a different logo
+    // host without a new build if the real one ever changes. Must contain a
+    // single "%s" placeholder for the team slug. Defaults to ESPN's CDN.
+    private static String logoUrlPattern = StreamFeed.DEFAULT_LOGO_URL_PATTERN;
+
+    /** Called once the feed loads; ignored if pattern is null/blank. */
+    public static void setLogoUrlPattern(String pattern) {
+        if (pattern != null && !pattern.trim().isEmpty()) {
+            logoUrlPattern = pattern.trim();
+        }
+    }
 
     /**
      * The MLB Stats API's "abbreviation" field mostly matches the slug ESPN
@@ -71,7 +82,7 @@ public class TeamLogoLoader {
         }
 
         exec.execute(() -> {
-            String url = String.format(LOGO_URL, espnSlug(teamAbbr));
+            String url = String.format(logoUrlPattern, espnSlug(teamAbbr));
             try {
                 Request req = new Request.Builder().url(url).build();
                 try (Response resp = http.newCall(req).execute()) {

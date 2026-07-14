@@ -47,7 +47,9 @@ import okhttp3.Response;
 public class MlbApiClient {
 
     private static final String TAG = "MlbApiClient";
-    private static final String BASE = "https://statsapi.mlb.com";
+
+    /** Default MLB Stats API host — used unless overridden via start(). */
+    public static final String DEFAULT_BASE = "https://statsapi.mlb.com";
 
     /** Slowest poll rate used for Preview/Final states (seconds). */
     public static final int ADAPTIVE_POLL_SLOW_SEC = 30;
@@ -79,6 +81,7 @@ public class MlbApiClient {
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private Listener listener;
+    private String base; // MLB Stats API host, set via start(); falls back to DEFAULT_BASE
     private int teamId;
     private int pollIntervalSec;     // current effective interval (may be adaptive)
     private int userPollIntervalSec; // user-configured interval, used during "Live"
@@ -110,10 +113,11 @@ public class MlbApiClient {
     // Public API
     // =========================================================================
 
-    public void start(int teamId, int pollIntervalSec, Listener listener) {
+    public void start(int teamId, int pollIntervalSec, String base, Listener listener) {
         this.teamId              = teamId;
         this.pollIntervalSec     = pollIntervalSec;
         this.userPollIntervalSec = pollIntervalSec;
+        this.base                = (base != null && !base.trim().isEmpty()) ? base.trim() : DEFAULT_BASE;
         this.listener            = listener;
         this.running             = true;
         this.gamePk              = -1;
@@ -202,7 +206,7 @@ public class MlbApiClient {
             String startDate = nowUtc.minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE);
             String endDate   = nowUtc.plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE);
 
-            String url = BASE + "/api/v1/schedule?sportId=1&teamId=" + teamId
+            String url = base + "/api/v1/schedule?sportId=1&teamId=" + teamId
                     + "&startDate=" + startDate + "&endDate=" + endDate
                     + "&hydrate=team";
             String body = get(url, "Schedule");
@@ -321,7 +325,7 @@ public class MlbApiClient {
             String startDate = nowUtc.plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE);
             String endDate   = nowUtc.plusDays(LOOKAHEAD_DAYS).format(DateTimeFormatter.ISO_LOCAL_DATE);
 
-            String url = BASE + "/api/v1/schedule?sportId=1&teamId=" + teamId
+            String url = base + "/api/v1/schedule?sportId=1&teamId=" + teamId
                     + "&startDate=" + startDate
                     + "&endDate="   + endDate
                     + "&hydrate=team";
@@ -401,7 +405,7 @@ public class MlbApiClient {
     }
     private void fetchLiveFeed() {
         if (!running || gamePk < 0) return;
-        String url = BASE + "/api/v1.1/game/" + gamePk + "/feed/live"
+        String url = base + "/api/v1.1/game/" + gamePk + "/feed/live"
                 + "?fields=gameData,teams,teamName,abbreviation,liveData,"
                 + "linescore,inningHalf,currentInning,outs,balls,strikes,"
                 + "pitcher,batter,fullName,id,plays,currentPlay,home,away,runs,"

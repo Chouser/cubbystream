@@ -59,7 +59,7 @@
                 android:inputType="textUri"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_secondary"
-                android:hint="https://example.com/streams.json"
+                android:hint="https://example.com/cubbystream-config.json"
                 android:singleLine="true"
                 android:background="@android:color/transparent"
                 android:textSize="13sp"

@@ -31,6 +31,9 @@ public class MainViewModel extends ViewModel {
     // Owned here so it keeps running across orientation changes without restart.
     final GamedayController gameday = new GamedayController();
     String currentGamedayUrl = null;
+    // Set from the feed's "mlbApiBase" once it loads (see StreamFeed); falls
+    // back to the real host until then, and if the feed doesn't specify one.
+    String mlbApiBase = StreamFeed.DEFAULT_MLB_API_BASE;
 
     // ---- Pending play ----
     // True when play was requested before the service was bound.

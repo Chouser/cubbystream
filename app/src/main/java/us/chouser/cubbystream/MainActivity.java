@@ -464,6 +464,8 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onSuccess(StreamFeed feed) {
                 textStatus.setVisibility(View.GONE);
+                vm.mlbApiBase = feed.getMlbApiBase();
+                TeamLogoLoader.setLogoUrlPattern(feed.getLogoUrlPattern());
                 List<StreamItem> streams = feed.getStreams();
                 vm.feedItems = (streams != null) ? streams : new ArrayList<>();
                 if (vm.feedItems.isEmpty()) {
@@ -525,7 +527,7 @@ public class MainActivity extends AppCompatActivity
         int pollSec  = prefs != null ? prefs.getPollInterval() : AppPrefs.DEFAULT_POLL_INTERVAL;
         long delayMs = (prefs != null ? prefs.getApiDelay()    : AppPrefs.DEFAULT_API_DELAY) * 1000L;
         showGamedayPlaceholder("Loading game data…");
-        vm.gameday.start(item.getTeamId(), pollSec, delayMs, this);
+        vm.gameday.start(item.getTeamId(), pollSec, delayMs, vm.mlbApiBase, this);
         if (vm.playState == MainViewModel.PlayState.STOPPED) {
             vm.gameday.onLive();
         }

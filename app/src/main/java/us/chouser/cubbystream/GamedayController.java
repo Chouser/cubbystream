@@ -62,14 +62,14 @@ public class GamedayController {
     // Lifecycle
     // =========================================================================
 
-    public void start(int teamId, int pollIntervalSec, long baseDelayMs, Listener listener) {
+    public void start(int teamId, int pollIntervalSec, long baseDelayMs, String mlbApiBase, Listener listener) {
         this.listener    = listener;
         this.baseDelayMs = baseDelayMs;
         extraDelayMs     = 0;
         pauseStartMs     = -1;
         history.clear();
 
-        apiClient.start(teamId, pollIntervalSec, new MlbApiClient.Listener() {
+        apiClient.start(teamId, pollIntervalSec, mlbApiBase, new MlbApiClient.Listener() {
             @Override public void onGameState(GameState state) { enqueue(state); }
             @Override public void onNoGame(String reason, long nextGameStartMs, String gamedayUrl) {
                 lastNoGameReason   = reason;
