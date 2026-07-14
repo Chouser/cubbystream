@@ -473,14 +473,11 @@ public class MainActivity extends AppCompatActivity
                     return;
                 }
                 populateSpinner(true);
-                if (feed.getUpdated() != null && !feed.getUpdated().isEmpty()) {
-                    Toast.makeText(MainActivity.this,
-                            "Updated: " + feed.getUpdated(), Toast.LENGTH_SHORT).show();
-                }
             }
             @Override
             public void onError(String message) {
-                showStatus("Could not load streams:\n" + message);
+                showStatus("Could not load streams:\n" + message
+                        + "\n\nCheck the feed URL in Settings.");
             }
         });
     }
