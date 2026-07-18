@@ -1,4 +1,4 @@
-{:paths ["src"]
+{:paths ["src" "classes"]
  :deps {org.clojure/clojure {:mvn/version "1.12.5"}
         scicloj/tablecloth {:mvn/version "8.021"}
         org.scicloj/scicloj.ml.smile {:mvn/version "7.6.2"}}}

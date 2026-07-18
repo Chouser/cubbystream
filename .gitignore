@@ -1,4 +1,5 @@
 app/build
+train-detect/classes
 .gradle
 .calva
 .cpcache
