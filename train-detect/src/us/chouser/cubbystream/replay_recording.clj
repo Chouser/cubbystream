@@ -64,7 +64,7 @@
 (def default-native-rate 44100)  ;; assumed pre-decimation live tap rate
 
 (def csv-header
-  (str "timestamp_ms,total_volume,mid_band_classic,mid_band,low_band,high_band,"
+  (str "timestamp_ms,total_volume,min_volume,mid_band_classic,mid_band,low_band,high_band,"
        "flatness,flux,papr,zcr,threshold,detector_state,volume_mode,stream_title\n"))
 
 ;; ---------------------------------------------------------------------------
@@ -275,16 +275,20 @@
              :ready? ready?))))
 
 (defn window-aggregate
-  "Mean over the window for most metrics, sum for flux, max for papr --
-   matching DetectionLogger's aggregation exactly."
+  "Mean over the window for most metrics, sum for flux, max for papr,
+   min for rms -- matching DetectionLogger's aggregation exactly.
+   min-rms preserves brief near-silence transients (e.g. the gap between
+   two back-to-back ad spots) that averaging alone would smooth away."
   [w]
   (let [mean (fn [^floats a] (/ (areduce a i acc (float 0.0) (+ acc (aget a i)))
                                  (float window-frames)))
         sum  (fn [^floats a] (areduce a i acc (float 0.0) (+ acc (aget a i))))
-        maxv (fn [^floats a] (areduce a i acc (float 0.0) (max acc (aget a i))))]
+        maxv (fn [^floats a] (areduce a i acc (float 0.0) (max acc (aget a i))))
+        minv (fn [^floats a] (areduce a i acc Float/MAX_VALUE (min acc (aget a i))))]
     {:mid-classic (mean (:mid-classic w)) :mid (mean (:mid w))
      :low (mean (:low w)) :high (mean (:high w))
-     :rms (mean (:rms w)) :flatness (mean (:flatness w))
+     :rms (mean (:rms w)) :min-rms (minv (:rms w))
+     :flatness (mean (:flatness w))
      :flux (sum (:flux w)) :papr (maxv (:papr w))
      :zcr (mean (:zcr w))}))
 
@@ -354,9 +358,9 @@
                     safe-title (str "\"" (str/replace title "\"" "\"\"") "\"")]
                 (.write w ^String
                         (String/format Locale/US
-                                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s\n"
+                                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s\n"
                                         (into-array Object
-                                          [ts (:rms agg) (:mid-classic agg) (:mid agg)
+                                          [ts (:rms agg) (:min-rms agg) (:mid-classic agg) (:mid agg)
                                            (:low agg) (:high agg) (:flatness agg)
                                            (:flux agg) (:papr agg) (:zcr agg)
                                            (float threshold) state-str state-str safe-title])))))

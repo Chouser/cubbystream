@@ -28,6 +28,9 @@ import java.util.concurrent.Executors;
  *       flatness, zcr — mean over the window</li>
  *   <li>flux — sum over the window (total spectral activity)</li>
  *   <li>papr — max over the window (worst-case peak)</li>
+ *   <li>min_volume — min over the window (quietest frame; a mean-only
+ *       total_volume smooths away brief near-silence transients, e.g. the
+ *       gap between two back-to-back ad spots, that this preserves)</li>
  * </ul>
  *
  * <p>mid_band_classic replicates the byte-swap that
@@ -43,7 +46,7 @@ public class DetectionLogger {
     private static final int WRITE_EVERY   = 20;
 
     private static final String CSV_HEADER =
-            "timestamp_ms,total_volume,mid_band_classic,mid_band,low_band,high_band," +
+            "timestamp_ms,total_volume,min_volume,mid_band_classic,mid_band,low_band,high_band," +
             "flatness,flux,papr,zcr,threshold,detector_state,volume_mode,stream_title\n";
 
     // ---- I/O ----
@@ -177,6 +180,7 @@ public class DetectionLogger {
         float aMidClassic = 0, aMid = 0, aLow = 0, aHigh = 0;
         float aRms = 0, aFlatness = 0, aZcr = 0;
         float aFlux = 0, aMaxPapr = 0;
+        float aMinRms = Float.MAX_VALUE;
         for (int i = 0; i < WINDOW_FRAMES; i++) {
             aMidClassic += wMidClassic[i];
             aMid        += wMid[i];
@@ -187,6 +191,7 @@ public class DetectionLogger {
             aZcr        += wZcr[i];
             aFlux       += wFlux[i];
             if (wPapr[i] > aMaxPapr) aMaxPapr = wPapr[i];
+            if (wRms[i]  < aMinRms)  aMinRms  = wRms[i];
         }
         aMidClassic /= WINDOW_FRAMES;
         aMid        /= WINDOW_FRAMES;
@@ -195,7 +200,7 @@ public class DetectionLogger {
         aRms        /= WINDOW_FRAMES;
         aFlatness   /= WINDOW_FRAMES;
         aZcr        /= WINDOW_FRAMES;
-        // aFlux is already summed; aMaxPapr is already max
+        // aFlux is already summed; aMaxPapr/aMinRms are already max/min
 
         boolean inAdBreak = detector != null && detector.isInAdBreak();
         float   threshold = detector != null ? detector.getThreshold() : Float.NaN;
@@ -206,6 +211,7 @@ public class DetectionLogger {
         final float  fLow        = aLow;
         final float  fHigh       = aHigh;
         final float  fRms        = aRms;
+        final float  fMinRms     = aMinRms;
         final float  fFlatness   = aFlatness;
         final float  fFlux       = aFlux;
         final float  fPapr       = aMaxPapr;
@@ -222,8 +228,8 @@ public class DetectionLogger {
                         : String.format(Locale.US, "%.4f", fThreshold);
                 String safeTitle = "\"" + title.replace("\"", "\"\"") + "\"";
                 bw.write(String.format(Locale.US,
-                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s,%s\n",
-                        ts, fRms, fMidClassic, fMid, fLow, fHigh,
+                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s,%s\n",
+                        ts, fRms, fMinRms, fMidClassic, fMid, fLow, fHigh,
                         fFlatness, fFlux, fPapr, fZcr,
                         thrStr, state, mode, safeTitle));
                 bw.flush();
