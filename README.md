@@ -1,6 +1,36 @@
 # CubbyStream — Android App
 
-A background-capable baseball audio streaming app with automatic commercial detection.
+A background-capable baseball audio streaming app with automatic ad detection.
+
+I'm driving and have several hours yet to go.  I'm a bit bored. Then I
+remember: the Cubs are playing! I start the CubbyStream app and the game
+immediately starts playing. A glance at the on-screen summary shows Busch is
+batting with PCA on second and only one out! The Mets must be changing pitchers
+because the audio stream is an commercial, and the app automatically switches
+to reduced-volume adbreak mode. A moment later, Pat and Ron start talking: the
+app automatically switches to regular volume and I settle in to listen to the
+game.
+
+- Stream Cubs play-by-play online from WSCR Chicago or WARU Wabash
+- Display instantly shows the state of the game: pitcher, batter, base runners,
+  pitch count, ball/strikes, outs, etc.
+- App monitors the audio stream with the goal of automatically reducing audio
+  volume during ad breaks.
+- Override audio volume mode with a single touch (adbreak mode doesn't mute
+  entirely by default so you can tell when game play has resumed even if the
+  auto detect is wrong).
+- Pause and resume the audio, and the on-screen data is paused/resumed in sync.
+- On-screen button to open the current game on MLB gameday site to find
+  previous plays, highlight videos, future game schedule, etc. (not for use
+  while driving!)
+
+Caveats:
+- Stream providers sometimes block some IP addresses. WARU doesn't broadcast all games. Your results may vary.
+- On-screen summary should work everywhere you have data but of course wifi or mobile data is required.
+- Audio stream providers delay the audio by various amounts, so the screen may
+  display the future (compared to the audio play-by-play). You can adjust how
+  much the display data is delayed in order to compensate.
+
 
 ---
 
