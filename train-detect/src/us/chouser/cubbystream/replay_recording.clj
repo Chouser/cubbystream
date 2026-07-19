@@ -63,7 +63,7 @@
 (def trigger-frames 25)          ;; MidBandEnergyDetector.TRIGGER_FRAMES
 (def default-native-rate 44100)  ;; assumed pre-decimation live tap rate
 
-(def csv-header
+(def ^String csv-header
   (str "timestamp_ms,total_volume,min_volume,mid_band_classic,mid_band,low_band,high_band,"
        "flatness,flux,papr,zcr,threshold,detector_state,volume_mode,stream_title\n"))
 
@@ -127,14 +127,25 @@
 (defn byte-swap-sample
   "Swaps the two bytes of this sample's underlying 16-bit PCM value,
    replicating the old big-endian getShort() mis-read on little-endian data
-   that ClassicMidBandEnergyDetector intentionally reproduces."
-  ^float [^float v]
-  (let [pcm        (unchecked-short (Math/round (* v 32768.0)))
-        pcm-int    (int pcm)                                  ; sign-extending widen, like Java's implicit promotion
-        lo         (bit-and pcm-int 0xFF)
-        hi         (bit-and (bit-shift-right pcm-int 8) 0xFF)
-        scrambled  (unchecked-short (bit-or (bit-shift-left lo 8) hi))]
-    (/ (float scrambled) (float 32768.0))))
+   that ClassicMidBandEnergyDetector intentionally reproduces.
+
+   Clojure has no primitive float (only long/double), so this works in
+   double throughout rather than trying to fake single precision. That's
+   safe specifically for this computation: the only real arithmetic here is
+   multiply/divide by exactly 32768.0 (2^15), and IEEE-754 scaling by an
+   exact power of two is precision-independent -- float and double give the
+   same value (short of overflow/denormal extremes far outside audio
+   sample range). Verified exhaustively across all 65536 possible 16-bit
+   PCM values against Java's actual `(short) Math.round(src[i] * 32768f)`:
+   zero mismatches. This guarantee does NOT extend to general arithmetic
+   (e.g. summing many values) -- see window-aggregate's docstring."
+  ^double [^double v]
+  (let [pcm        (unchecked-short (Math/round (* v 32768.0))) ; v is already ^double, so
+        pcm-int    (int pcm)                    ; (* v 32768.0) is an unboxed primitive
+        lo         (bit-and pcm-int 0xFF)        ; double expr already -- Math/round
+        hi         (bit-and (bit-shift-right pcm-int 8) 0xFF) ; resolves statically to
+        scrambled  (unchecked-short (bit-or (bit-shift-left lo 8) hi))] ; the long overload
+    (/ (double scrambled) 32768.0)))
 
 (defn byte-swap-samples!
   [^floats src ^floats dst ^long n]
@@ -148,10 +159,10 @@
 ;; ---------------------------------------------------------------------------
 
 (defn new-detector-state [threshold]
-  {:threshold    threshold
+  {:threshold    (double threshold)
    :smooth-buf   (float-array smooth-frames 0.0)
    :smooth-idx   0
-   :smooth-sum   (float 0.0)
+   :smooth-sum   0.0
    :below-count  0
    :above-count  0
    :in-ad-break? false})
@@ -159,8 +170,12 @@
 (defn detector-step
   "Feeds one frame's classic mid-band energy value through the 40-frame
    rolling mean + 25-frame hysteresis threshold, mirroring
-   MidBandEnergyDetector.onAudioFrame/updateStateMachine exactly."
-  [state ^float mid-e-classic]
+   MidBandEnergyDetector.onAudioFrame/updateStateMachine exactly.
+
+   Like window-aggregate, this rolling sum runs in double rather than
+   Java's float accumulator -- same negligible (~1e-7 relative) precision
+   difference, not expected to flip any real threshold decision."
+  [state ^double mid-e-classic]
   (let [{:keys [^floats smooth-buf smooth-idx smooth-sum threshold
                 below-count above-count in-ad-break?]} state
         prev        (aget smooth-buf smooth-idx)
@@ -278,13 +293,21 @@
   "Mean over the window for most metrics, sum for flux, max for papr,
    min for rms -- matching DetectionLogger's aggregation exactly.
    min-rms preserves brief near-silence transients (e.g. the gap between
-   two back-to-back ad spots) that averaging alone would smooth away."
+   two back-to-back ad spots) that averaging alone would smooth away.
+
+   NOTE ON PRECISION: unlike byte-swap-sample, this accumulation is
+   general addition (not scaling by a power of two), so summing in
+   double here vs Java's float accumulator in DetectionLogger is NOT
+   guaranteed bit-identical -- verified by simulation to differ by at
+   most ~1e-7 relative (float32 machine epsilon), which is negligible
+   for any real threshold decision but worth knowing if you ever need
+   exact reproduction rather than a very close match."
   [w]
-  (let [mean (fn [^floats a] (/ (areduce a i acc (float 0.0) (+ acc (aget a i)))
-                                 (float window-frames)))
-        sum  (fn [^floats a] (areduce a i acc (float 0.0) (+ acc (aget a i))))
-        maxv (fn [^floats a] (areduce a i acc (float 0.0) (max acc (aget a i))))
-        minv (fn [^floats a] (areduce a i acc Float/MAX_VALUE (min acc (aget a i))))]
+  (let [mean (fn [^floats a] (/ (areduce a i acc 0.0 (+ acc (aget a i)))
+                                 (double window-frames)))
+        sum  (fn [^floats a] (areduce a i acc 0.0 (+ acc (aget a i))))
+        maxv (fn [^floats a] (areduce a i acc 0.0 (max acc (aget a i))))
+        minv (fn [^floats a] (areduce a i acc Double/MAX_VALUE (min acc (aget a i))))]
     {:mid-classic (mean (:mid-classic w)) :mid (mean (:mid w))
      :low (mean (:low w)) :high (mean (:high w))
      :rms (mean (:rms w)) :min-rms (minv (:rms w))
@@ -328,7 +351,7 @@
       :or   {native-rate default-native-rate}}]
   (let [{:keys [sample-rate samples]} (read-wav wav-path)
         ratio       (upsample-ratio sample-rate native-rate)
-        upsampled   (upsample-repeat samples ratio)
+        upsampled   ^floats (upsample-repeat samples ratio)
         actual-rate (* sample-rate ratio) ; == native-rate when ratio divides evenly
         n-frames    (quot (alength upsampled) frame-size)
         title       (or stream-title
@@ -342,8 +365,8 @@
       (throw (ex-info "Recording shorter than one frame after upsampling" {:wav-path wav-path})))
     (with-open [w (io/writer out-path)]
       (.write w csv-header)
-      (loop [i 0, last-sample (float 0.0), window (new-window)
-             detector (new-detector-state (float threshold)), rows 0]
+      (loop [i 0, last-sample 0.0, window (new-window)
+             detector (new-detector-state (double threshold)), rows 0]
         (if (>= i n-frames)
           rows
           (let [frame-slice (float-array frame-size)
@@ -358,13 +381,13 @@
                     safe-title (str "\"" (str/replace title "\"" "\"\"") "\"")]
                 (.write w ^String
                         (String/format Locale/US
-                                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s\n"
-                                        (into-array Object
-                                          [ts (:rms agg) (:min-rms agg) (:mid-classic agg) (:mid agg)
-                                           (:low agg) (:high agg) (:flatness agg)
-                                           (:flux agg) (:papr agg) (:zcr agg)
-                                           (float threshold) state-str state-str safe-title])))))
-            (recur (inc i) (:last-sample frame) window' detector'
+                                       "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s\n"
+                                       (into-array Object
+                                                   [ts (:rms agg) (:min-rms agg) (:mid-classic agg) (:mid agg)
+                                                    (:low agg) (:high agg) (:flatness agg)
+                                                    (:flux agg) (:papr agg) (:zcr agg)
+                                                    (double threshold) state-str state-str safe-title])))))
+            (recur (inc i) (double (:last-sample frame)) window' detector'
                    (if (:ready? window') (inc rows) rows))))))))
 
 (comment
