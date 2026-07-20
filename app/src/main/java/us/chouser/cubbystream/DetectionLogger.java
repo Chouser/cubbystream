@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
  * <p>Aggregation per metric:
  * <ul>
  *   <li>mid_band_classic, mid_band, low_band, high_band, total_volume,
- *       flatness, zcr — mean over the window</li>
+ *       flatness, zcr, stereo_corr, stereo_width — mean over the window</li>
  *   <li>flux — sum over the window (total spectral activity)</li>
  *   <li>papr — max over the window (worst-case peak)</li>
  *   <li>min_volume — min over the window (quietest frame; a mean-only
@@ -33,9 +33,17 @@ import java.util.concurrent.Executors;
  *       gap between two back-to-back ad spots, that this preserves)</li>
  * </ul>
  *
+ * <p>stereo_corr and stereo_width are computed by
+ * {@link AudioFrameUtils#stereoStats} -- see its doc comment for the
+ * formulas and the (unconfirmed) ad-detection hypothesis they're meant to
+ * let us test. For single-channel sources these are trivially 1.0/0.0.
+ *
  * <p>mid_band_classic replicates the byte-swap that
  * {@link ClassicMidBandEnergyDetector} applies before its FFT, so the logged
- * value is directly comparable to the working detector's signal.
+ * value is directly comparable to the working detector's signal. NOTE this
+ * comparability requires the source audio to genuinely have been recorded
+ * with its real channel count preserved -- see {@link AudioRecorder}'s doc
+ * comment.
  *
  * <p>All file I/O is dispatched to a single-threaded background executor.
  */
@@ -47,7 +55,7 @@ public class DetectionLogger {
 
     private static final String CSV_HEADER =
             "timestamp_ms,total_volume,min_volume,mid_band_classic,mid_band,low_band,high_band," +
-            "flatness,flux,papr,zcr,threshold,detector_state,volume_mode,stream_title\n";
+            "flatness,flux,papr,zcr,stereo_corr,stereo_width,threshold,detector_state,volume_mode,stream_title\n";
 
     // ---- I/O ----
     private final ExecutorService writer = Executors.newSingleThreadExecutor();
@@ -60,6 +68,11 @@ public class DetectionLogger {
 
     // ---- Working buffers (audio thread only) ----
     private final float[] monoBuf      = new float[AudioTap.FRAME_SIZE];
+    // Sized for the raw interleaved frame (frameSize * channelCount), grown
+    // lazily like ClassicMidBandEnergyDetector.swappedSamples -- see the
+    // byte-swap ordering note on onAudioFrame below for why this can't just
+    // be FRAME_SIZE.
+    private float[]        swappedInterleavedBuf = new float[AudioTap.FRAME_SIZE * 2];
     private final float[] swappedBuf   = new float[AudioTap.FRAME_SIZE];
     private final float[] realPart     = new float[AudioTap.FRAME_SIZE];
     private final float[] imagPart     = new float[AudioTap.FRAME_SIZE];
@@ -76,6 +89,8 @@ public class DetectionLogger {
     private final float[] wFlux       = new float[WINDOW_FRAMES];
     private final float[] wPapr       = new float[WINDOW_FRAMES];
     private final float[] wZcr        = new float[WINDOW_FRAMES];
+    private final float[] wStereoCorr  = new float[WINDOW_FRAMES];
+    private final float[] wStereoWidth = new float[WINDOW_FRAMES];
 
     private int  windowPos   = 0;   // next slot to write in ring
     private int  windowFill  = 0;   // how many slots are valid (0..WINDOW_FRAMES)
@@ -135,6 +150,14 @@ public class DetectionLogger {
         // --- Mix to mono ---
         AudioFrameUtils.toMono(samples, frameSize, channelCount, monoBuf);
 
+        // --- Stereo correlation / width (time-domain, on the RAW interleaved
+        // samples -- must happen before/independent of mono-mixing, since
+        // mixing is exactly what erases the channel difference this measures).
+        // See AudioFrameUtils.stereoStats's doc comment for the formulas and
+        // the ad-detection hypothesis this is meant to let us test.
+        AudioFrameUtils.StereoStats stereo =
+                AudioFrameUtils.stereoStats(samples, frameSize, channelCount);
+
         // --- ZCR (time-domain, per-sample) ---
         float zcr = AudioFrameUtils.zcr(monoBuf, frameSize, lastSample);
         lastSample = monoBuf[frameSize - 1];
@@ -150,7 +173,20 @@ public class DetectionLogger {
         float highE = AudioFrameUtils.bandEnergy(realPart, imagPart, 1800, 8000, sampleRate, AudioTap.FRAME_SIZE);
 
         // --- Classic FFT path (byte-swap each sample before FFT) ---
-        byteSwapSamples(monoBuf, swappedBuf, frameSize);
+        // IMPORTANT: byte-swap is a nonlinear bit-level operation on each raw
+        // sample and does NOT commute with mono-mixing (swap(mean(L,R)) !=
+        // mean(swap(L), swap(R))). ClassicMidBandEnergyDetector swaps the raw
+        // interleaved samples FIRST, then mono-mixes (inside its call to
+        // super.onAudioFrame) -- so to log a value that's actually comparable
+        // to what the live detector decides on, this must swap before mixing
+        // too, not after. (An earlier version of this method mixed to mono
+        // first and swapped the mono result -- a different, unrelated
+        // quantity whenever channelCount > 1, which is why the logged
+        // mid_band_classic previously showed no relationship to detector_state.)
+        int total = frameSize * channelCount;
+        if (swappedInterleavedBuf.length < total) swappedInterleavedBuf = new float[total];
+        byteSwapSamples(samples, swappedInterleavedBuf, total);
+        AudioFrameUtils.toMono(swappedInterleavedBuf, frameSize, channelCount, swappedBuf);
         AudioFrameUtils.hannWindow(swappedBuf, realPart, imagPart, AudioTap.FRAME_SIZE);
         AudioFrameUtils.fft(realPart, imagPart, AudioTap.FRAME_SIZE);
         AudioFrameUtils.spectralStats(realPart, imagPart, prevMagClass, AudioTap.FRAME_SIZE);
@@ -167,6 +203,8 @@ public class DetectionLogger {
         wFlux[slot]       = ss.flux;
         wPapr[slot]       = ss.papr;
         wZcr[slot]        = zcr;
+        wStereoCorr[slot]  = stereo.corr;
+        wStereoWidth[slot] = stereo.width;
 
         windowPos  = (windowPos + 1) % WINDOW_FRAMES;
         if (windowFill < WINDOW_FRAMES) windowFill++;
@@ -181,6 +219,7 @@ public class DetectionLogger {
         float aRms = 0, aFlatness = 0, aZcr = 0;
         float aFlux = 0, aMaxPapr = 0;
         float aMinRms = Float.MAX_VALUE;
+        float aStereoCorr = 0, aStereoWidth = 0;
         for (int i = 0; i < WINDOW_FRAMES; i++) {
             aMidClassic += wMidClassic[i];
             aMid        += wMid[i];
@@ -190,6 +229,8 @@ public class DetectionLogger {
             aFlatness   += wFlatness[i];
             aZcr        += wZcr[i];
             aFlux       += wFlux[i];
+            aStereoCorr  += wStereoCorr[i];
+            aStereoWidth += wStereoWidth[i];
             if (wPapr[i] > aMaxPapr) aMaxPapr = wPapr[i];
             if (wRms[i]  < aMinRms)  aMinRms  = wRms[i];
         }
@@ -200,6 +241,8 @@ public class DetectionLogger {
         aRms        /= WINDOW_FRAMES;
         aFlatness   /= WINDOW_FRAMES;
         aZcr        /= WINDOW_FRAMES;
+        aStereoCorr  /= WINDOW_FRAMES;
+        aStereoWidth /= WINDOW_FRAMES;
         // aFlux is already summed; aMaxPapr/aMinRms are already max/min
 
         boolean inAdBreak = detector != null && detector.isInAdBreak();
@@ -216,6 +259,8 @@ public class DetectionLogger {
         final float  fFlux       = aFlux;
         final float  fPapr       = aMaxPapr;
         final float  fZcr        = aZcr;
+        final float  fStereoCorr  = aStereoCorr;
+        final float  fStereoWidth = aStereoWidth;
         final float  fThreshold  = threshold;
         final String state       = inAdBreak ? "ads" : "game";
         final String mode        = volumeMode;
@@ -228,9 +273,9 @@ public class DetectionLogger {
                         : String.format(Locale.US, "%.4f", fThreshold);
                 String safeTitle = "\"" + title.replace("\"", "\"\"") + "\"";
                 bw.write(String.format(Locale.US,
-                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s,%s\n",
+                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s,%s\n",
                         ts, fRms, fMinRms, fMidClassic, fMid, fLow, fHigh,
-                        fFlatness, fFlux, fPapr, fZcr,
+                        fFlatness, fFlux, fPapr, fZcr, fStereoCorr, fStereoWidth,
                         thrStr, state, mode, safeTitle));
                 bw.flush();
             } catch (IOException e) {
@@ -243,8 +288,8 @@ public class DetectionLogger {
     // Helpers
     // =========================================================================
 
-    private static void byteSwapSamples(float[] src, float[] dst, int frameSize) {
-        ClassicMidBandEnergyDetector.byteSwapSamples(src, dst, frameSize);
+    private static void byteSwapSamples(float[] src, float[] dst, int count) {
+        ClassicMidBandEnergyDetector.byteSwapSamples(src, dst, count);
     }
 
     public static File getLogDir(Context context) {

@@ -53,6 +53,34 @@
                    chunk)))
              chunks))))
 
+(defn fill-missing-stereo
+  "Logs captured before AudioRecorder/DetectionLogger gained stereo support
+   have no stereo_corr/stereo_width columns at all; concatenating those
+   files alongside newer ones that do have the columns (read-ds pulls in
+   every .csv in the directory) would otherwise hand ml/train a column
+   full of nulls for every old row, which decision-tree training can't
+   handle. Fills both the 'column is entirely absent' case (the row map
+   simply has no such key, so `update` passes nil to the fn) and the
+   'column exists but this row has no value' case with 1.0/0.0 -- the same
+   'no stereo information available' convention
+   AudioFrameUtils.stereoStats itself already uses for genuinely mono
+   input, so old and new data are treated consistently rather than one
+   silently corrupting training.
+
+   NOTE: written using the same row-map approach as
+   fix-user-latency/clean-short-spans above (rather than a tablecloth
+   column-level fill API) since that pattern is already proven correct in
+   this file and I couldn't verify an alternative against a live REPL --
+   see conversation. Re-check if training errors on missing values despite
+   this."
+  [ds]
+  (tc/dataset
+   (map (fn [row]
+          (-> row
+              (update :stereo_corr  (fn [v] (if (some? v) v 1.0)))
+              (update :stereo_width (fn [v] (if (some? v) v 0.0)))))
+        (tc/rows ds :as-maps))))
+
 ;; --- Feature Engineering ---
 
 (defn add-features [ds]
@@ -156,7 +184,28 @@
   {:fields      ["private final AudioFrameUtils.RollingStats zcrRoll = new AudioFrameUtils.RollingStats(40);"]
    :update      ["zcrRoll.push(AudioFrameUtils.zcr(monoBuf, AudioTap.FRAME_SIZE, lastSample));"]
    :var         "zcrRoll.mean()"
-   :ready-check "zcrRoll.ready()"})
+   :ready-check "zcrRoll.ready()"}
+
+  ;; Time-domain, computed on the RAW interleaved `samples`/`channelCount`
+  ;; already in scope in onAudioFrame -- deliberately NOT derived from
+  ;; monoBuf, since mono-mixing is exactly what erases the channel
+  ;; difference these measure. Trivially 1.0/0.0 for mono sources. See
+  ;; AudioFrameUtils.stereoStats's doc comment for the formulas and the
+  ;; (unconfirmed) ad-detection hypothesis they're meant to let us test.
+  ;; `stereo` itself is computed once in generate-java's on-audio-lines
+  ;; (guarded by needs-stereo) and shared here rather than each :update
+  ;; recomputing it independently -- see conversation for why.
+  "stereo_corr"
+  {:fields      ["private final AudioFrameUtils.RollingStats stereoCorrRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["stereoCorrRoll.push(stereo.corr);"]
+   :var         "stereoCorrRoll.mean()"
+   :ready-check "stereoCorrRoll.ready()"}
+
+  "stereo_width"
+  {:fields      ["private final AudioFrameUtils.RollingStats stereoWidthRoll = new AudioFrameUtils.RollingStats(40);"]
+   :update      ["stereoWidthRoll.push(stereo.width);"]
+   :var         "stereoWidthRoll.mean()"
+   :ready-check "stereoWidthRoll.ready()"})
 
 (defn generate-java
   "Emit a complete AdDetector implementation for the given decision tree.
@@ -181,6 +230,7 @@
 
         needs-high   (some #{"mid_high_ratio"} used-features)
         needs-flux   (some #{"flux_energy_ratio"} used-features)
+        needs-stereo (some #{"stereo_corr" "stereo_width"} used-features)
 
         predict-params (str/join ", " (map #(str "double " %) used-features))
         predict-args   (str/join ", " (map feature->var used-features))
@@ -200,6 +250,8 @@
                    (str i8 "float highE = AudioFrameUtils.bandEnergy(re, im, 1800, 8000, sampleRate, FRAME_SIZE);"))
                  (when needs-flux
                    (str i8 "AudioFrameUtils.SpectralStats ss = AudioFrameUtils.spectralStats(re, im, prevMag, FRAME_SIZE);"))
+                 (when needs-stereo
+                   (str i8 "AudioFrameUtils.StereoStats stereo = AudioFrameUtils.stereoStats(samples, frameSize, channelCount);"))
                  (when (seq updates)
                    (str/join "\n" (map #(str i8 %) updates)))
                  (when (seq ready-checks)
@@ -328,9 +380,11 @@
 (defn train-pipeline [csv-dir]
   (println "Training...")
   (let [feature-keys [:mid_band_classic :mid_band :classic_high_ratio :mid_high_ratio
-                      :flux_energy_ratio :low_band :high_band :total_volume :flatness :zcr]
+                      :flux_energy_ratio :low_band :high_band :total_volume :flatness :zcr
+                      :stereo_corr :stereo_width]
         feature-strings (map name feature-keys)
         processed-ds (-> (read-ds csv-dir)
+                         fill-missing-stereo
                          fix-user-latency
                          clean-short-spans
                          add-features

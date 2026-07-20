@@ -211,6 +211,56 @@ public final class AudioFrameUtils {
         return flux / Math.max(energy, 1.0f);
     }
 
+    public static final class StereoStats {
+        /** sum(L*R)/sqrt(sum(L^2)*sum(R^2)) in [-1,1]. 1 = mono-compatible,
+         *  0 = uncorrelated, negative = out of phase. 1.0 for mono input. */
+        public final float corr;
+        /** RMS of the (L-R)/2 "side" signal. 0 = mono-compatible, higher =
+         *  wider stereo image. 0.0 for mono input. */
+        public final float width;
+
+        private StereoStats(float corr, float width) {
+            this.corr  = corr;
+            this.width = width;
+        }
+    }
+
+    /**
+     * Time-domain stereo correlation/width from a raw interleaved frame,
+     * computed on channels 0 and 1 only (i.e. L/R; any further channels are
+     * ignored). Deliberately takes the RAW interleaved samples, not a
+     * mono-mixed buffer -- mixing is exactly what erases the difference
+     * this measures, so it must be computed before/independent of any
+     * mono-mixing step, not after.
+     *
+     * <p>A classic broadcast-engineering "phase correlation" / "stereo
+     * width" pair. Hypothesis this exists to test (unconfirmed, not yet
+     * used by any detector): produced commercial audio may show measurably
+     * wider stereo than a sports commentary/crowd-noise feed, which
+     * broadcasters often keep narrower for mono-compatibility.
+     *
+     * @param samples      raw interleaved samples, frameSize*channelCount long
+     * @param channelCount if less than 2, returns corr=1.0f width=0.0f trivially
+     */
+    public static StereoStats stereoStats(float[] samples, int frameSize, int channelCount) {
+        if (channelCount < 2) return new StereoStats(1f, 0f);
+        double sumLL = 0, sumRR = 0, sumLR = 0, sumDiff2 = 0;
+        for (int g = 0; g < frameSize; g++) {
+            int base = g * channelCount;
+            float l = samples[base];
+            float r = samples[base + 1];
+            sumLL += (double) l * l;
+            sumRR += (double) r * r;
+            sumLR += (double) l * r;
+            double side = (l - r) * 0.5;
+            sumDiff2 += side * side;
+        }
+        double denom = Math.sqrt(sumLL * sumRR);
+        float corr  = denom > 0 ? (float) (sumLR / denom) : 1f;
+        float width = (float) Math.sqrt(sumDiff2 / frameSize);
+        return new StereoStats(corr, width);
+    }
+
     // =========================================================================
     // Stateful helpers — one instance per consumer
     // =========================================================================

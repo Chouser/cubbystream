@@ -17,19 +17,29 @@ import java.util.concurrent.Executors;
 
 /**
  * Consumes interleaved PCM frames from {@link AudioTap} and writes a
- * timestamped mono 16kHz 16-bit WAV file to the same logs directory used
- * by {@link DetectionLogger}.
+ * timestamped 16kHz 16-bit WAV file to the same logs directory used by
+ * {@link DetectionLogger}, preserving the source's actual channel count
+ * (mono stays mono; stereo is written as genuine interleaved stereo, not
+ * mixed down). This matters beyond fidelity: {@link ClassicMidBandEnergyDetector}
+ * byte-swaps raw interleaved samples *before* mono-mixing, and that specific
+ * order can only be reproduced from a recording if real per-channel data was
+ * actually preserved -- a mono-only recording of a stereo source can never
+ * get this right, no matter how it's processed afterward.
  *
  * <p>Downsampling is done by integer decimation: accumulate {@code ratio}
- * input samples per channel, average them to one mono sample, write one
- * output sample.  This is adequate for the labeling use case where audio
- * quality is secondary to file size.
+ * input samples per channel *independently per channel*, average each
+ * channel down to one output sample, write one interleaved output frame.
+ * This is adequate for the labeling use case where audio quality is
+ * secondary to file size.
  *
  * <p>The WAV header is written with placeholder lengths on open, then
  * re-patched every {@link #PATCH_INTERVAL_MS} milliseconds and again on
- * close.  If the process crashes between patches the file is still valid
+ * close. If the process crashes between patches the file is still valid
  * WAV — the header will simply underreport the length by up to one patch
- * interval's worth of audio; most tools will play it to EOF anyway.
+ * interval's worth of audio; most tools will play it to EOF anyway. The
+ * channel count in the header is likewise only settled once the first real
+ * frame arrives (see the format-change block in {@link #onAudioFrame}) and
+ * self-corrects on the next patch, the same way the sample rate already did.
  *
  * <p>All file I/O runs on a single-threaded background executor so it
  * never blocks the audio pipeline.
@@ -45,18 +55,24 @@ public class AudioRecorder {
     // File state (writer thread only)
     private File             outputFile;
     private FileOutputStream fos;
-    private long             totalSamples  = 0;
+    // Decimated frame count written so far -- a "frame" here means one sample
+    // PER CHANNEL (i.e. NOT multiplied by channelCount); buildHeader() does
+    // that multiplication itself when computing byte counts.
+    private long             totalFrames   = 0;
     private long             lastPatchedMs = 0;
 
     // Volatile flag checked on audio thread before doing any work
     private volatile boolean open = false;
 
     // Decimation state (audio thread only)
-    private int   inputRate    = 44100;
-    private int   channelCount = 2;
-    private int   ratio        = Math.max(1, Math.round(44100f / TARGET_RATE));
-    private float accumMono    = 0f;
-    private int   accumCount   = 0;
+    private int     inputRate    = 44100;
+    private int     channelCount = 2;
+    private int     ratio        = Math.max(1, Math.round(44100f / TARGET_RATE));
+    // Per-channel accumulator (grown if a source ever reports more channels
+    // than this) -- replaces the old single accumMono float now that each
+    // channel is decimated independently instead of being mixed first.
+    private float[] accum        = new float[2];
+    private int      accumCount   = 0;
 
     // =========================================================================
     // Lifecycle
@@ -67,7 +83,7 @@ public class AudioRecorder {
      * naming convention as {@link DetectionLogger}.
      */
     public void open(Context context, String streamTitle) {
-        accumMono      = 0f;
+        java.util.Arrays.fill(accum, 0f);
         accumCount     = 0;
         diagFrameCount = 0;
 
@@ -82,7 +98,7 @@ public class AudioRecorder {
                 String safe = streamTitle.replaceAll("[^a-zA-Z0-9_\\-]", "_");
                 outputFile   = new File(dir, ts + "_" + safe + ".wav");
                 fos          = new FileOutputStream(outputFile);
-                totalSamples = 0;
+                totalFrames  = 0;
                 writeHeader(0);
                 lastPatchedMs = System.currentTimeMillis();
                 open = true;
@@ -103,7 +119,7 @@ public class AudioRecorder {
                 fos = null;
                 patchHeader();
                 Log.i(TAG, "Closed " + outputFile.getName()
-                        + " (" + totalSamples + " samples)");
+                        + " (" + totalFrames + " frames, " + channelCount + "ch)");
             } catch (IOException e) {
                 Log.e(TAG, "Close error: " + e.getMessage());
             }
@@ -127,7 +143,8 @@ public class AudioRecorder {
             this.inputRate    = sampleRate;
             this.channelCount = channelCount;
             this.ratio        = Math.max(1, Math.round((float) sampleRate / TARGET_RATE));
-            accumMono  = 0f;
+            if (accum.length < channelCount) accum = new float[channelCount];
+            java.util.Arrays.fill(accum, 0f);
             accumCount = 0;
             Log.i(TAG, "Format: sampleRate=" + sampleRate + " channelCount=" + channelCount
                     + " ratio=" + this.ratio
@@ -147,44 +164,47 @@ public class AudioRecorder {
                     + " max=" + String.format("%.4f", max));
         }
 
-        // Decimate to mono TARGET_RATE
-        int    maxOut    = (frameSize / ratio) + 1;
-        short[] outBuf   = new short[maxOut];
-        int     outCount = 0;
+        // Decimate to TARGET_RATE, preserving channelCount channels -- each
+        // channel is accumulated/averaged independently (no mono mixing) so
+        // real stereo separation survives into the WAV file. See the class
+        // doc comment for why this matters for the classic byte-swap path.
+        int     maxOutFrames = (frameSize / ratio) + 1;
+        short[] outBuf       = new short[maxOutFrames * channelCount];
+        int     outFrames    = 0;
 
         for (int g = 0; g < frameSize; g++) {
-            // Mix channels to mono
-            float mono = 0f;
             int base = g * channelCount;
-            for (int c = 0; c < channelCount; c++) mono += samples[base + c];
-            mono /= channelCount;
-
-            accumMono  += mono;
+            for (int c = 0; c < channelCount; c++) accum[c] += samples[base + c];
             accumCount++;
 
             if (accumCount >= ratio) {
-                float avg = accumMono / accumCount;
-                int   pcm = Math.round(avg * 32767f);
-                outBuf[outCount++] = (short) Math.max(-32768, Math.min(32767, pcm));
-                accumMono  = 0f;
+                int outBase = outFrames * channelCount;
+                for (int c = 0; c < channelCount; c++) {
+                    float avg = accum[c] / accumCount;
+                    int   pcm = Math.round(avg * 32767f);
+                    outBuf[outBase + c] = (short) Math.max(-32768, Math.min(32767, pcm));
+                    accum[c] = 0f;
+                }
                 accumCount = 0;
+                outFrames++;
             }
         }
 
-        if (outCount == 0) return;
+        if (outFrames == 0) return;
 
         // Convert shorts → little-endian bytes on audio thread (avoids per-sample
         // object allocation on the writer thread)
-        final byte[] bytes = new byte[outCount * BYTES_PER_SAMPLE];
+        final int   totalShorts = outFrames * channelCount;
+        final byte[] bytes      = new byte[totalShorts * BYTES_PER_SAMPLE];
         ByteBuffer bb = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-        for (int i = 0; i < outCount; i++) bb.putShort(outBuf[i]);
+        for (int i = 0; i < totalShorts; i++) bb.putShort(outBuf[i]);
 
-        final int samplesThisFrame = outCount;
+        final int framesThisCall = outFrames;
         writer.execute(() -> {
             if (fos == null) return;
             try {
                 fos.write(bytes);
-                totalSamples += samplesThisFrame;
+                totalFrames += framesThisCall;
 
                 // Periodically patch the header so the file is recoverable if we crash
                 long now = System.currentTimeMillis();
@@ -212,14 +232,19 @@ public class AudioRecorder {
     private void patchHeader() throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(outputFile, "rw")) {
             raf.seek(0);
-            raf.write(buildHeader(totalSamples));
+            raf.write(buildHeader(totalFrames));
         }
     }
 
-    private byte[] buildHeader(long numSamples) {
-        int  actualRate = (ratio > 0) ? (inputRate / ratio) : TARGET_RATE;
-        long dataBytes  = numSamples * BYTES_PER_SAMPLE;
-        long chunkSize  = 36 + dataBytes;
+    /**
+     * @param numFrames decimated frame count (per-channel; NOT multiplied by
+     *                   channelCount -- see the field doc comment on totalFrames).
+     */
+    private byte[] buildHeader(long numFrames) {
+        int  actualRate  = (ratio > 0) ? (inputRate / ratio) : TARGET_RATE;
+        int  numChannels = Math.max(1, channelCount);
+        long dataBytes   = numFrames * numChannels * BYTES_PER_SAMPLE;
+        long chunkSize    = 36 + dataBytes;
 
         ByteBuffer b = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN);
 
@@ -230,13 +255,13 @@ public class AudioRecorder {
 
         // fmt sub-chunk
         b.put(new byte[]{'f', 'm', 't', ' '});
-        b.putInt(16);                               // sub-chunk size (PCM)
-        b.putShort((short) 1);                      // audio format: PCM
-        b.putShort((short) 1);                      // mono
-        b.putInt(actualRate);                       // sample rate
-        b.putInt(actualRate * BYTES_PER_SAMPLE);    // byte rate
-        b.putShort((short) BYTES_PER_SAMPLE);       // block align
-        b.putShort((short) 16);                     // bits per sample
+        b.putInt(16);                                        // sub-chunk size (PCM)
+        b.putShort((short) 1);                               // audio format: PCM
+        b.putShort((short) numChannels);                      // mono or stereo, whatever the source is
+        b.putInt(actualRate);                                 // sample rate
+        b.putInt(actualRate * BYTES_PER_SAMPLE * numChannels); // byte rate
+        b.putShort((short) (BYTES_PER_SAMPLE * numChannels));  // block align
+        b.putShort((short) 16);                                // bits per sample
 
         // data sub-chunk
         b.put(new byte[]{'d', 'a', 't', 'a'});
