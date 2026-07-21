@@ -310,5 +310,14 @@ public final class AudioFrameUtils {
             float variance = (sumSq - (sum * sum) / count) / (count - 1);
             return (float) Math.sqrt(Math.max(variance, 0f));
         }
+
+        /** Clears all accumulated state back to empty, as if freshly constructed. */
+        public void reset() {
+            java.util.Arrays.fill(buf, 0f);
+            pos   = 0;
+            count = 0;
+            sum   = 0f;
+            sumSq = 0f;
+        }
     }
 }
