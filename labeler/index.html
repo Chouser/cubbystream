@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CubbyStream Labeler</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg:        #0d0f12;
+    --surface:   #161a1f;
+    --border:    #252a32;
+    --game:      #1a7a4a;
+    --game-dim:  #0f4a2c;
+    --ads:       #8b2020;
+    --ads-dim:   #561414;
+    --auto:      #2a3040;
+    --marker:    #f0c040;
+    --text:      #c8d0dc;
+    --text-dim:  #5a6478;
+    --accent:    #4a9eff;
+    --playhead:  #ffffff;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .file-zone {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+  }
+  .file-btn {
+    padding: 5px 12px;
+    background: var(--border);
+    border: 1px solid #333a48;
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .file-btn:hover { background: #2a3040; }
+  .file-name {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 260px;
+  }
+  input[type=file] { display: none; }
+
+  .save-btn {
+    padding: 5px 14px;
+    background: var(--accent);
+    border: none;
+    border-radius: 3px;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto;
+    transition: opacity 0.15s;
+  }
+  .save-btn:disabled { opacity: 0.3; cursor: default; }
+  .save-btn:not(:disabled):hover { opacity: 0.85; }
+
+  /* ---- Controls ---- */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .play-btn {
+    width: 30px; height: 30px;
+    background: var(--border);
+    border: 1px solid #333a48;
+    border-radius: 50%;
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .play-btn:hover { background: #2a3040; }
+
+  .time-display {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    min-width: 110px;
+  }
+
+  .label-btns {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .label-btn {
+    padding: 4px 12px;
+    border: 1px solid;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+  .label-btn.game {
+    background: var(--game-dim); border-color: var(--game); color: #5dba8a;
+  }
+  .label-btn.game:hover { background: var(--game); color: #fff; }
+  .label-btn.ads {
+    background: var(--ads-dim); border-color: var(--ads); color: #d06060;
+  }
+  .label-btn.ads:hover { background: var(--ads); color: #fff; }
+  .label-btn.undo {
+    background: transparent; border-color: var(--border); color: var(--text-dim);
+  }
+  .label-btn.undo:hover { border-color: var(--marker); color: var(--marker); }
+
+  .hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+
+  /* ---- Timeline ---- */
+  .timeline-wrap {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #timeline {
+    width: 100%;
+    cursor: crosshair;
+    display: block;
+    flex: 1;
+  }
+
+  .scrollbar-wrap {
+    padding: 4px 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #scrollbar {
+    width: 100%;
+    height: 14px;
+    cursor: pointer;
+    display: block;
+  }
+
+  /* ---- Status ---- */
+  .status {
+    padding: 4px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(74,158,255,0.08);
+    border: 2px dashed var(--accent);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--accent);
+    pointer-events: none;
+    z-index: 100;
+  }
+  body.dragging .drop-overlay { display: flex; }
+</style>
+</head>
+<body>
+
+<div class="drop-overlay">Drop CSV and WAV files</div>
+
+<header>
+  <h1>◆ CUBBYSTREAM LABELER</h1>
+  <div class="file-zone">
+    <label class="file-btn" for="csvInput">Load CSV</label>
+    <input type="file" id="csvInput" accept=".csv">
+    <span class="file-name" id="csvName">no file loaded</span>
+    <label class="file-btn" for="wavInput" style="margin-left:8px">Load WAV</label>
+    <input type="file" id="wavInput" accept=".wav,.mp3,.ogg,.m4a">
+    <span class="file-name" id="wavName">no audio</span>
+  </div>
+  <button class="save-btn" id="saveBtn" disabled>Save Labelled CSV</button>
+</header>
+
+<div class="controls">
+  <button class="play-btn" id="playBtn" title="Space to play/pause">▶</button>
+  <div class="time-display" id="timeDisplay">0:00:00 / 0:00:00</div>
+
+  <span class="hint">Drag to select range · click to seek · G=game · A=ads · Z=undo</span>
+
+  <div class="label-btns">
+    <button class="label-btn game" id="btnGame" title="G">▶ GAME</button>
+    <button class="label-btn ads"  id="btnAds"  title="A">▶ ADS</button>
+    <button class="label-btn undo" id="btnUndo" title="Z">↩ UNDO</button>
+  </div>
+</div>
+
+<div class="timeline-wrap">
+  <canvas id="timeline"></canvas>
+  <div class="scrollbar-wrap">
+    <canvas id="scrollbar"></canvas>
+  </div>
+</div>
+<div class="status" id="status">Load a CSV log file to begin. WAV is optional but enables audio playback.</div>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+// =============================================================================
+// State
+// =============================================================================
+let rows        = [];          // parsed CSV rows as objects
+let headers     = [];          // CSV column names
+let labels      = [];          // per-row label string (mutable)
+let undoStack   = [];          // snapshot of markers before each edit
+
+let audio       = document.getElementById('audio');
+let audioReady  = false;
+let duration    = 0;           // seconds (from CSV or audio)
+
+// View window in row-index space
+let viewStart   = 0;
+let viewEnd     = 0;
+
+// Drag selection in row-index space; null when no selection active
+let selStart    = null;
+let selEnd      = null;
+let isDragging  = false;
+
+const COLORS = { game: '#1a7a4a', ads: '#8b2020', auto: '#2a3040' };
+const LABEL_TEXT = { game: '#5dba8a', ads: '#d06060', auto: '#5a6478' };
+
+// =============================================================================
+// CSV Parsing
+// =============================================================================
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  rows = lines.slice(1).map(line => {
+    // Simple CSV parse — handle quoted fields
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { vals.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    vals.push(cur);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] ?? '');
+    return obj;
+  }).filter(r => r.timestamp_ms !== undefined);
+
+  // Initialise labels from volume_mode column
+  labels = rows.map(r => {
+    const m = (r.volume_mode || 'auto').toLowerCase();
+    return (m === 'game' || m === 'ads') ? m : 'auto';
+  });
+
+  // Derive duration from timestamps
+  if (rows.length > 1) {
+    const t0 = +rows[0].timestamp_ms;
+    const t1 = +rows[rows.length - 1].timestamp_ms;
+    duration = (t1 - t0) / 1000;
+  }
+
+  viewStart = 0;
+  viewEnd   = rows.length;
+  undoStack = [];
+}
+
+function rowSeconds(idx) {
+  if (rows.length < 2) return 0;
+  return (+rows[idx].timestamp_ms - +rows[0].timestamp_ms) / 1000;
+}
+
+function secondsToRow(sec) {
+  if (rows.length === 0) return 0;
+  const t = +rows[0].timestamp_ms + sec * 1000;
+  let lo = 0, hi = rows.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (+rows[mid].timestamp_ms < t) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+// =============================================================================
+// Label Application
+// =============================================================================
+function labelRange(fromRow, toRow, label) {
+  if (rows.length === 0) return;
+  const lo = Math.min(fromRow, toRow);
+  const hi = Math.max(fromRow, toRow);
+  undoStack.push(labels.slice());
+  for (let i = lo; i <= hi; i++) labels[i] = label;
+  render();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  labels = undoStack.pop();
+  render();
+}
+
+// =============================================================================
+// Canvas Rendering
+// =============================================================================
+const tCanvas    = document.getElementById('timeline');
+const tCtx       = tCanvas.getContext('2d');
+const sbCanvas   = document.getElementById('scrollbar');
+const sbCtx      = sbCanvas.getContext('2d');
+
+function resize() {
+  tCanvas.width  = tCanvas.offsetWidth;
+  tCanvas.height = tCanvas.offsetHeight;
+  sbCanvas.width  = sbCanvas.offsetWidth;
+  sbCanvas.height = sbCanvas.offsetHeight;
+  render();
+}
+
+function render() {
+  renderTimeline();
+  renderScrollbar();
+  renderTimeDisplay();
+}
+
+function renderTimeline() {
+  const W = tCanvas.width, H = tCanvas.height;
+  if (W === 0 || H === 0 || rows.length === 0) return;
+  tCtx.clearRect(0, 0, W, H);
+
+  const span  = viewEnd - viewStart;
+  if (span <= 0) return;
+
+  const ROW_H   = Math.max(2, H * 0.18);  // label band height
+  const WAVE_Y  = ROW_H + 2;
+  const WAVE_H  = H - WAVE_Y - 22;        // waveform area
+  const TICK_Y  = H - 20;
+
+  // ---- Label colour band ----
+  for (let i = viewStart; i < viewEnd; i++) {
+    const x1 = ((i - viewStart) / span) * W;
+    const x2 = ((i + 1 - viewStart) / span) * W;
+    tCtx.fillStyle = COLORS[labels[i]] || COLORS.auto;
+    tCtx.fillRect(x1, 0, Math.max(1, x2 - x1), ROW_H);
+  }
+
+  // ---- Selection highlight ----
+  if (selStart !== null && selEnd !== null) {
+    const lo = Math.min(selStart, selEnd);
+    const hi = Math.max(selStart, selEnd);
+    const sx1 = Math.max(0, ((lo - viewStart) / span) * W);
+    const sx2 = Math.min(W, ((hi + 1 - viewStart) / span) * W);
+    tCtx.fillStyle = 'rgba(240,192,64,0.18)';
+    tCtx.fillRect(sx1, 0, sx2 - sx1, H);
+    tCtx.strokeStyle = '#f0c040';
+    tCtx.lineWidth = 1;
+    tCtx.strokeRect(sx1, 0, sx2 - sx1, H);
+  }
+
+  // ---- Waveform from total_volume ----
+  if (rows[0].total_volume !== undefined) {
+    // Compute max in view for normalisation
+    let maxVol = 1;
+    for (let i = viewStart; i < viewEnd; i++) {
+      const v = +rows[i].total_volume || 0;
+      if (v > maxVol) maxVol = v;
+    }
+
+    tCtx.fillStyle = '#3a6aa0';
+    const pw = Math.max(1, W / span);
+    for (let i = viewStart; i < viewEnd; i++) {
+      const v  = (+rows[i].total_volume || 0) / maxVol;
+      const x  = ((i - viewStart) / span) * W;
+      const bh = v * WAVE_H;
+      tCtx.fillStyle = labels[i] === 'ads' ? '#7a3030' :
+                       labels[i] === 'game' ? '#1e6040' : '#2a3a50';
+      tCtx.fillRect(x, WAVE_Y + WAVE_H - bh, pw + 0.5, bh);
+    }
+  }
+
+  // ---- Time ticks ----
+  tCtx.fillStyle = '#252a32';
+  tCtx.fillRect(0, TICK_Y, W, H - TICK_Y);
+  tCtx.fillStyle = '#5a6478';
+  tCtx.font = '10px IBM Plex Mono, monospace';
+  const totalSec = rowSeconds(viewEnd - 1) - rowSeconds(viewStart);
+  const tickSec  = pickTickInterval(totalSec, W);
+  const t0sec    = rowSeconds(viewStart);
+  const startTick = Math.ceil(t0sec / tickSec) * tickSec;
+  for (let t = startTick; t < t0sec + totalSec; t += tickSec) {
+    const frac = (t - t0sec) / totalSec;
+    const x    = frac * W;
+    tCtx.fillStyle = '#252a32';
+    tCtx.fillRect(x, WAVE_Y, 1, WAVE_H);
+    tCtx.fillStyle = '#5a6478';
+    tCtx.fillText(formatTime(t), x + 2, TICK_Y + 12);
+  }
+
+  // ---- Playhead ----
+  if (audioReady) {
+    const pSec = audio.currentTime;
+    const pRow = secondsToRow(pSec);
+    if (pRow >= viewStart && pRow < viewEnd) {
+      const x = ((pRow - viewStart) / span) * W;
+      tCtx.strokeStyle = '#ffffff';
+      tCtx.lineWidth   = 1.5;
+      tCtx.setLineDash([4, 3]);
+      tCtx.beginPath();
+      tCtx.moveTo(x, 0);
+      tCtx.lineTo(x, H);
+      tCtx.stroke();
+      tCtx.setLineDash([]);
+    }
+  }
+}
+
+function renderScrollbar() {
+  const W = sbCanvas.width, H = sbCanvas.height;
+  if (W === 0 || rows.length === 0) return;
+  sbCtx.clearRect(0, 0, W, H);
+
+  // Mini label band across full range
+  rows.forEach((_, i) => {
+    const x1 = (i / rows.length) * W;
+    const x2 = ((i + 1) / rows.length) * W;
+    sbCtx.fillStyle = COLORS[labels[i]] || COLORS.auto;
+    sbCtx.fillRect(x1, 0, Math.max(1, x2 - x1), H);
+  });
+
+  // View window highlight
+  const wx1 = (viewStart / rows.length) * W;
+  const wx2 = (viewEnd   / rows.length) * W;
+  sbCtx.fillStyle = 'rgba(255,255,255,0.12)';
+  sbCtx.fillRect(wx1, 0, wx2 - wx1, H);
+  sbCtx.strokeStyle = 'rgba(255,255,255,0.5)';
+  sbCtx.lineWidth = 1;
+  sbCtx.strokeRect(wx1, 0, wx2 - wx1, H);
+
+  // Playhead on scrollbar
+  const pSec = audio.currentTime;
+  const pRow = secondsToRow(pSec);
+  const px   = (pRow / rows.length) * W;
+  sbCtx.strokeStyle = '#ffffff';
+  sbCtx.lineWidth   = 1;
+  sbCtx.beginPath();
+  sbCtx.moveTo(px, 0);
+  sbCtx.lineTo(px, H);
+  sbCtx.stroke();
+}
+
+function renderTimeDisplay() {
+  const cur  = audio.currentTime || 0;
+  const dur  = audio.duration    || duration || 0;
+  document.getElementById('timeDisplay').textContent =
+    formatTime(cur) + ' / ' + formatTime(dur);
+}
+
+function pickTickInterval(totalSec, width) {
+  const candidates = [5, 10, 30, 60, 120, 300, 600, 1800, 3600];
+  for (const c of candidates) {
+    if ((totalSec / c) * 60 < width) return c;
+  }
+  return 3600;
+}
+
+function formatTime(sec) {
+  sec = Math.floor(sec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+// =============================================================================
+// Interaction
+// =============================================================================
+
+// Click-drag on timeline → select a range
+function timelineXtoRow(x) {
+  const span = viewEnd - viewStart;
+  return Math.max(0, Math.min(rows.length - 1, Math.floor(viewStart + (x / tCanvas.width) * span)));
+}
+
+tCanvas.addEventListener('mousedown', e => {
+  if (rows.length === 0) return;
+  isDragging = true;
+  const row = Math.min(timelineXtoRow(e.offsetX), rows.length - 1);
+  selStart = row;
+  selEnd   = row;
+  render();
+});
+
+tCanvas.addEventListener('mousemove', e => {
+  if (!isDragging || rows.length === 0) return;
+  selEnd = Math.min(timelineXtoRow(e.offsetX), rows.length - 1);
+  render();
+});
+
+tCanvas.addEventListener('mouseup', e => {
+  if (!isDragging) return;
+  isDragging = false;
+  selEnd = Math.min(timelineXtoRow(e.offsetX), rows.length - 1);
+
+  const lo = Math.min(selStart, selEnd);
+  const hi = Math.max(selStart, selEnd);
+
+  // Short click (single row) → seek audio, clear selection
+  if (lo === hi) {
+    selStart = selEnd = null;
+    const sec = rowSeconds(lo);
+    if (audioReady) audio.currentTime = sec;
+    setStatus(`Seeked to ${formatTime(sec)}`);
+  } else {
+    setStatus(`Selected ${hi - lo + 1} rows (${formatTime(rowSeconds(lo))}–${formatTime(rowSeconds(hi))}) — press G or A to label`);
+  }
+  render();
+});
+
+tCanvas.addEventListener('mouseleave', e => {
+  if (isDragging) {
+    isDragging = false;
+    render();
+  }
+});
+
+// Wheel to zoom
+tCanvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (rows.length === 0) return;
+  const span    = viewEnd - viewStart;
+  const frac    = e.offsetX / tCanvas.width;
+  const centre  = viewStart + frac * span;
+  const factor  = e.deltaY > 0 ? 1.3 : 0.77;
+  const newSpan = Math.min(rows.length, Math.max(20, span * factor));
+  viewStart = Math.round(Math.max(0, centre - frac * newSpan));
+  viewEnd   = Math.min(rows.length, viewStart + Math.round(newSpan));
+  if (viewEnd > rows.length) { viewEnd = rows.length; viewStart = Math.max(0, viewEnd - Math.round(newSpan)); }
+  render();
+}, { passive: false });
+
+// Scrollbar click → pan
+sbCanvas.addEventListener('click', e => {
+  if (rows.length === 0) return;
+  const frac    = e.offsetX / sbCanvas.width;
+  const centre  = Math.floor(frac * rows.length);
+  const span    = viewEnd - viewStart;
+  viewStart = Math.max(0, centre - Math.floor(span / 2));
+  viewEnd   = Math.min(rows.length, viewStart + span);
+  render();
+});
+
+// Play/pause
+document.getElementById('playBtn').addEventListener('click', togglePlay);
+function togglePlay() {
+  if (!audioReady) return;
+  if (audio.paused) audio.play(); else audio.pause();
+}
+
+audio.addEventListener('play',  () => { document.getElementById('playBtn').textContent = '⏸'; });
+audio.addEventListener('pause', () => { document.getElementById('playBtn').textContent = '▶'; });
+audio.addEventListener('timeupdate', () => {
+  // Auto-scroll playhead into view
+  const row  = secondsToRow(audio.currentTime);
+  const span = viewEnd - viewStart;
+  if (row < viewStart + span * 0.05) {
+    viewStart = Math.max(0, row - Math.floor(span * 0.05));
+    viewEnd   = Math.min(rows.length, viewStart + span);
+  } else if (row > viewEnd - span * 0.05) {
+    viewEnd   = Math.min(rows.length, row + Math.floor(span * 0.05));
+    viewStart = Math.max(0, viewEnd - span);
+  }
+  render();
+});
+
+// Label buttons
+document.getElementById('btnGame').addEventListener('click', () => applyLabel('game'));
+document.getElementById('btnAds' ).addEventListener('click', () => applyLabel('ads'));
+document.getElementById('btnUndo').addEventListener('click', undo);
+
+function applyLabel(label) {
+  if (rows.length === 0) { setStatus('Load a CSV first.'); return; }
+
+  if (selStart !== null && selEnd !== null && selStart !== selEnd) {
+    // Range selection — label the selected rows
+    const lo = Math.min(selStart, selEnd);
+    const hi = Math.max(selStart, selEnd);
+    labelRange(lo, hi, label);
+    setStatus(`Labelled ${hi - lo + 1} rows as ${label.toUpperCase()}`);
+    selStart = selEnd = null;
+  } else {
+    // No selection — label from playhead to end (original behaviour)
+    if (!audioReady) { setStatus('Load a WAV and seek to a position, or drag to select a range.'); return; }
+    const row = secondsToRow(audio.currentTime);
+    labelRange(row, rows.length - 1, label);
+    setStatus(`Labelled from ${formatTime(rowSeconds(row))} to end as ${label.toUpperCase()}`);
+  }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  if (e.key === 'g' || e.key === 'G') applyLabel('game');
+  if (e.key === 'a' || e.key === 'A') applyLabel('ads');
+  if (e.key === 'z' || e.key === 'Z') undo();
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); nudge(-5); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); nudge(5); }
+});
+
+function nudge(sec) {
+  if (!audioReady) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration || duration, audio.currentTime + sec));
+}
+
+// =============================================================================
+// File Loading
+// =============================================================================
+
+document.getElementById('csvInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadCSV(file);
+});
+
+document.getElementById('wavInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadAudio(file);
+});
+
+function loadCSV(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      parseCSV(ev.target.result);
+      document.getElementById('csvName').textContent = file.name;
+      document.getElementById('saveBtn').disabled = false;
+      setStatus(`Loaded ${rows.length} rows from ${file.name}`);
+      render();
+    } catch (err) {
+      setStatus('Error parsing CSV: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadAudio(file) {
+  audioReady = false;
+  if (audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src);
+
+  const url = URL.createObjectURL(file);
+
+  audio.addEventListener('canplaythrough', () => {
+    audioReady = true;
+    duration   = audio.duration;
+    document.getElementById('wavName').textContent = file.name;
+    setStatus(`Audio loaded: ${formatTime(audio.duration)}`);
+    render();
+  }, { once: true });
+
+  audio.addEventListener('error', () => {
+    const err = audio.error;
+    setStatus(`Audio error (code ${err ? err.code : '?'}): ${err ? err.message : 'unknown'} — is it a valid WAV file?`);
+  }, { once: true });
+
+  audio.src = url;
+  audio.load();
+}
+
+// Drag and drop anywhere on the page
+document.addEventListener('dragover',  e => { e.preventDefault(); document.body.classList.add('dragging'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('dragging'); });
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  document.body.classList.remove('dragging');
+  for (const file of e.dataTransfer.files) {
+    if (file.name.endsWith('.csv'))                                          loadCSV(file);
+    if (/\.(wav|mp3|ogg|m4a)$/i.test(file.name))                           loadAudio(file);
+  }
+});
+
+// =============================================================================
+// Save
+// =============================================================================
+
+document.getElementById('saveBtn').addEventListener('click', saveCSV);
+
+function saveCSV() {
+  if (rows.length === 0) return;
+
+  // Build output: same headers, but volume_mode column replaced with corrected labels
+  const vmIdx = headers.indexOf('volume_mode');
+  const outHeaders = vmIdx >= 0 ? headers : [...headers, 'volume_mode'];
+
+  const lines = [outHeaders.join(',')];
+  rows.forEach((row, i) => {
+    const vals = outHeaders.map(h => {
+      if (h === 'volume_mode') return labels[i];
+      const v = row[h] ?? '';
+      return v.includes(',') ? `"${v}"` : v;
+    });
+    lines.push(vals.join(','));
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+
+  const csvName = document.getElementById('csvName').textContent;
+  const outName = csvName.replace(/\.csv$/i, '_labelled.csv');
+
+  const a = document.createElement('a');
+  a.href = url; a.download = outName; a.click();
+  URL.revokeObjectURL(url);
+  setStatus(`Saved ${outName}`);
+}
+
+// =============================================================================
+// Utility
+// =============================================================================
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+// Resize observer
+const ro = new ResizeObserver(resize);
+ro.observe(tCanvas);
+ro.observe(sbCanvas);
+resize();
+
+// Playhead animation loop
+function loop() {
+  if (!audio.paused) render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
