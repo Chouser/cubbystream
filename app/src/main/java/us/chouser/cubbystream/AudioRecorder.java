@@ -74,6 +74,15 @@ public class AudioRecorder {
     private float[] accum        = new float[2];
     private int      accumCount   = 0;
 
+    // Decimated output-sample count, updated SYNCHRONOUSLY on the audio thread
+    // as each frame is decimated -- unlike totalFrames above (which only
+    // advances once the async writer thread actually flushes bytes, and so
+    // can lag behind by however much I/O backlog exists). DetectionLogger
+    // reads this via getDecimatedSampleCount() to log an exact, race-free
+    // correspondence between a CSV row and a position in the WAV file, with
+    // no dependence on wall-clock time at all -- see the class doc comment.
+    private volatile long decimatedSoFar = 0;
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -85,6 +94,7 @@ public class AudioRecorder {
     public void open(Context context, String streamTitle) {
         java.util.Arrays.fill(accum, 0f);
         accumCount     = 0;
+        decimatedSoFar = 0;
         diagFrameCount = 0;
 
         writer.execute(() -> {
@@ -191,6 +201,7 @@ public class AudioRecorder {
         }
 
         if (outFrames == 0) return;
+        decimatedSoFar += outFrames;
 
         // Convert shorts → little-endian bytes on audio thread (avoids per-sample
         // object allocation on the writer thread)
@@ -217,6 +228,28 @@ public class AudioRecorder {
                 Log.e(TAG, "Write error: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * The number of decimated output samples (per channel) produced so far,
+     * updated synchronously on the audio thread as each frame is decimated --
+     * NOT the same as (and always at least as current as) {@link #totalFrames},
+     * which only advances once the async writer thread actually flushes those
+     * samples to disk. Safe to call from the audio thread (e.g. from
+     * DetectionLogger.onAudioFrame, which runs on the same thread just before
+     * this class processes the same frame -- so the value read there reflects
+     * everything through the *previous* frame, a fixed sub-frame lag that
+     * doesn't accumulate over the length of a recording).
+     *
+     * <p>Dividing this by the WAV's actualRate (see {@link #buildHeader}) gives
+     * the exact position, in WAV-seconds, that a given CSV row corresponds to
+     * -- with no dependence on wall-clock timestamps, timezones, or whether
+     * the upstream stream ever stalled/skipped, since both this counter and
+     * the WAV file itself are driven off the identical sequence of frames
+     * delivered by AudioTap.
+     */
+    public long getDecimatedSampleCount() {
+        return decimatedSoFar;
     }
 
     // =========================================================================

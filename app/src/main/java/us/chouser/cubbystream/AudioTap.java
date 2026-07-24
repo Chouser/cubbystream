@@ -101,7 +101,7 @@ public class AudioTap implements AudioProcessor {
         DetectionLogger l = logger;
         AudioRecorder   r = recorder;
         if (d != null) d.onAudioFrame(accumBuf, FRAME_SIZE, channelCount, sampleRate);
-        if (l != null) l.onAudioFrame(accumBuf, FRAME_SIZE, channelCount, sampleRate, d);
+        if (l != null) l.onAudioFrame(accumBuf, FRAME_SIZE, channelCount, sampleRate, d, r);
         if (r != null) r.onAudioFrame(accumBuf, FRAME_SIZE, channelCount, sampleRate);
     }
 

@@ -45,6 +45,15 @@ import java.util.concurrent.Executors;
  * with its real channel count preserved -- see {@link AudioRecorder}'s doc
  * comment.
  *
+ * <p>Each row also logs {@code wav_sample_index}: the exact decimated-sample
+ * position in the matching WAV file, read synchronously from
+ * {@link AudioRecorder#getDecimatedSampleCount()} at the moment the row is
+ * written. Unlike {@code timestamp_ms}, this gives an exact correspondence
+ * between a row and a position in the WAV audio -- both are driven off the
+ * identical sequence of frames from {@link AudioTap}, so this holds
+ * regardless of wall-clock drift, timezones, or upstream stream stalls/skips.
+ * -1 if no recorder was supplied (e.g. recording without a WAV writer).
+ *
  * <p>All file I/O is dispatched to a single-threaded background executor.
  */
 public class DetectionLogger {
@@ -54,7 +63,7 @@ public class DetectionLogger {
     private static final int WRITE_EVERY   = 20;
 
     private static final String CSV_HEADER =
-            "timestamp_ms,total_volume,min_volume,mid_band_classic,mid_band,low_band,high_band," +
+            "timestamp_ms,wav_sample_index,total_volume,min_volume,mid_band_classic,mid_band,low_band,high_band," +
             "flatness,flux,papr,zcr,stereo_corr,stereo_width,threshold,detector_state,volume_mode,stream_title\n";
 
     // ---- I/O ----
@@ -144,7 +153,7 @@ public class DetectionLogger {
     // =========================================================================
 
     public void onAudioFrame(float[] samples, int frameSize, int channelCount, int sampleRate,
-                             AdDetector detector) {
+                             AdDetector detector, AudioRecorder recorder) {
         if (!open) return;
 
         // --- Mix to mono ---
@@ -248,7 +257,12 @@ public class DetectionLogger {
         boolean inAdBreak = detector != null && detector.isInAdBreak();
         float   threshold = detector != null ? detector.getThreshold() : Float.NaN;
 
-        final long   ts          = System.currentTimeMillis();
+        final long   ts             = System.currentTimeMillis();
+        // Read synchronously, on this same audio thread, before AudioTap
+        // dispatches this frame to the recorder -- so this reflects the WAV's
+        // exact decimated-sample count through the *previous* frame. See the
+        // class doc comment and AudioRecorder#getDecimatedSampleCount.
+        final long   wavSampleIndex = recorder != null ? recorder.getDecimatedSampleCount() : -1L;
         final float  fMidClassic = aMidClassic;
         final float  fMid        = aMid;
         final float  fLow        = aLow;
@@ -273,8 +287,8 @@ public class DetectionLogger {
                         : String.format(Locale.US, "%.4f", fThreshold);
                 String safeTitle = "\"" + title.replace("\"", "\"\"") + "\"";
                 bw.write(String.format(Locale.US,
-                        "%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s,%s\n",
-                        ts, fRms, fMinRms, fMidClassic, fMid, fLow, fHigh,
+                        "%d,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%s,%s\n",
+                        ts, wavSampleIndex, fRms, fMinRms, fMidClassic, fMid, fLow, fHigh,
                         fFlatness, fFlux, fPapr, fZcr, fStereoCorr, fStereoWidth,
                         thrStr, state, mode, safeTitle));
                 bw.flush();
