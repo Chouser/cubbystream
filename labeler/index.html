@@ -369,6 +369,7 @@ let undoStack   = [];          // snapshot of markers before each edit
 let audio       = document.getElementById('audio');
 let audioReady  = false;
 let duration    = 0;           // seconds (from CSV or audio)
+let audioSampleRate = null;
 
 // View window in row-index space
 let viewStart   = 0;
@@ -438,17 +439,29 @@ function numericColumns() {
 }
 
 function rowSeconds(idx) {
+  if (rows.length===0) return 0;
+  if ('wav_sample_index' in rows[0] && audioSampleRate){
+    return (+rows[idx].wav_sample_index)/(audioSampleRate);
+  }
   if (rows.length < 2) return 0;
   return (+rows[idx].timestamp_ms - +rows[0].timestamp_ms) / 1000;
 }
 
 function secondsToRow(sec) {
-  if (rows.length === 0) return 0;
-  const t = +rows[0].timestamp_ms + sec * 1000;
-  let lo = 0, hi = rows.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (+rows[mid].timestamp_ms < t) lo = mid + 1; else hi = mid;
+  if (rows.length===0) return 0;
+  let lo=0,hi=rows.length-1;
+  if ('wav_sample_index' in rows[0] && audioSampleRate){
+    const target=sec*audioSampleRate;
+    while(lo<hi){
+      const mid=(lo+hi)>>1;
+      if(+rows[mid].wav_sample_index<target) lo=mid+1; else hi=mid;
+    }
+    return lo;
+  }
+  const t=+rows[0].timestamp_ms+sec*1000;
+  while(lo<hi){
+    const mid=(lo+hi)>>1;
+    if(+rows[mid].timestamp_ms<t) lo=mid+1; else hi=mid;
   }
   return lo;
 }
